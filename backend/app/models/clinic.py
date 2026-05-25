@@ -102,7 +102,7 @@ class Clinic(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
-    users: Mapped[List["User"]] = relationship("User", back_populates="clinic")
+    users: Mapped[List["User"]] = relationship("User", back_populates="clinic", foreign_keys="[User.clinic_id]")
     doctors: Mapped[List["Doctor"]] = relationship("Doctor", back_populates="clinic", cascade="all, delete-orphan")
     appointments: Mapped[List["Appointment"]] = relationship("Appointment", back_populates="clinic")
     products: Mapped[List["Product"]] = relationship("Product", back_populates="clinic", cascade="all, delete-orphan")
