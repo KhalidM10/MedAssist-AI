@@ -3,11 +3,13 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, Users, ShieldAlert,
   Activity, Cpu, DollarSign, Settings, LogOut,
-  ChevronLeft, ChevronRight, Bell,
+  ChevronLeft, ChevronRight, Bell, GitMerge,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth'
 import { useWs } from '../../contexts/WebSocketContext'
+import { api } from '../../lib/api'
 
 /* ── Nav structure ── */
 interface NavItem {
@@ -26,8 +28,9 @@ const SECTIONS: NavSection[] = [
   {
     items: [
       { href: '/admin',           label: 'Overview',       icon: LayoutDashboard, end: true },
-      { href: '/admin/clinics',   label: 'Clinics',        icon: Building2 },
-      { href: '/admin/users',     label: 'Users',          icon: Users },
+      { href: '/admin/clinics',          label: 'Clinics',          icon: Building2 },
+      { href: '/admin/change-requests', label: 'Change Requests',  icon: GitMerge },
+      { href: '/admin/users',           label: 'Users',            icon: Users },
     ],
   },
   {
@@ -54,11 +57,11 @@ function Avatar({ name }: { name?: string }) {
     : 'A'
   return (
     <div
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold select-none"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-[12px] font-semibold select-none"
       style={{
-        background: 'rgba(129,140,248,0.15)',
-        color: '#818CF8',
-        border: '1px solid rgba(129,140,248,0.25)',
+        background: 'rgba(200,169,110,0.12)',
+        color: '#C8A96E',
+        border: '1px solid rgba(200,169,110,0.2)',
         fontFamily: 'var(--font-body)',
       }}
     >
@@ -74,6 +77,13 @@ export function AdminLayout() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+
+  const { data: changeReqCount } = useQuery<{ pending: number }>({
+    queryKey: ['admin-change-req-count'],
+    queryFn: () => api.get('/admin/change-requests/count').then(r => r.data),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
 
   const rawPage = pathname.replace('/admin', '').replace(/^\//, '') || 'overview'
   const pageLabel = rawPage.charAt(0).toUpperCase() + rawPage.slice(1).replace(/-/g, ' ')
@@ -99,13 +109,13 @@ export function AdminLayout() {
         >
           {/* Icon */}
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-            style={{ background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.2)' }}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded"
+            style={{ background: 'rgba(200,169,110,0.12)', border: '1px solid rgba(200,169,110,0.25)' }}
           >
             <svg width="16" height="16" viewBox="0 0 22 22" fill="none" aria-hidden="true">
               <path
                 d="M1 11 L6 11 L8 7 L11 16 L13 6 L15 11 L21 11"
-                stroke="#818CF8"
+                stroke="#C8A96E"
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -121,7 +131,7 @@ export function AdminLayout() {
               >
                 MedAssist AI
               </p>
-              <p className="mt-[3px] truncate text-[10.5px] font-bold uppercase tracking-widest" style={{ color: '#818CF8' }}>
+              <p className="mt-[3px] truncate text-[10.5px] font-bold uppercase tracking-widest" style={{ color: '#C8A96E' }}>
                 Admin Console
               </p>
             </div>
@@ -165,7 +175,7 @@ export function AdminLayout() {
               {section.label && !collapsed && (
                 <p
                   className="px-5 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.1em]"
-                  style={{ color: '#475569', fontFamily: 'var(--font-body)' }}
+                  style={{ color: 'var(--sidebar-text)', opacity: 0.5, fontFamily: 'var(--font-body)' }}
                 >
                   {section.label}
                 </p>
@@ -204,26 +214,40 @@ export function AdminLayout() {
                       }
                     }}
                   >
-                    {({ isActive }) => (
-                      <>
-                        <Icon
-                          className="h-4 w-4 shrink-0"
-                          style={{ color: isActive ? '#FFFFFF' : 'var(--sidebar-text)' }}
-                        />
-                        {!collapsed && (
-                          <span
-                            className="flex-1 truncate text-[13.5px]"
-                            style={{
-                              fontFamily: 'var(--font-body)',
-                              fontWeight: isActive ? 500 : 400,
-                              color: isActive ? '#FFFFFF' : 'var(--sidebar-text)',
-                            }}
-                          >
-                            {label}
-                          </span>
-                        )}
-                      </>
-                    )}
+                    {({ isActive }) => {
+                      const pendingBadge =
+                        href === '/admin/change-requests' && (changeReqCount?.pending ?? 0) > 0
+                          ? changeReqCount!.pending
+                          : null
+                      return (
+                        <>
+                          <Icon
+                            className="h-4 w-4 shrink-0"
+                            style={{ color: isActive ? '#FFFFFF' : 'var(--sidebar-text)' }}
+                          />
+                          {!collapsed && (
+                            <span
+                              className="flex-1 truncate text-[13.5px]"
+                              style={{
+                                fontFamily: 'var(--font-body)',
+                                fontWeight: isActive ? 500 : 400,
+                                color: isActive ? '#FFFFFF' : 'var(--sidebar-text)',
+                              }}
+                            >
+                              {label}
+                            </span>
+                          )}
+                          {pendingBadge !== null && (
+                            <span
+                              className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+                              style={{ background: '#D97706', color: '#fff' }}
+                            >
+                              {pendingBadge}
+                            </span>
+                          )}
+                        </>
+                      )
+                    }}
                   </NavLink>
                 ))}
               </div>
@@ -248,7 +272,7 @@ export function AdminLayout() {
                 </p>
                 <p
                   className="mt-[2px] truncate text-[11px]"
-                  style={{ color: '#818CF8', fontFamily: 'var(--font-body)' }}
+                  style={{ color: '#C8A96E', fontFamily: 'var(--font-body)' }}
                 >
                   super_admin
                 </p>
@@ -342,10 +366,10 @@ export function AdminLayout() {
             </button>
             <div className="h-5 w-px mx-1" style={{ backgroundColor: 'var(--color-border)' }} />
             <div
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold select-none"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[11px] font-semibold select-none"
               style={{
-                background: 'rgba(129,140,248,0.12)',
-                color: '#818CF8',
+                background: 'rgba(200,169,110,0.12)',
+                color: '#C8A96E',
                 fontFamily: 'var(--font-body)',
               }}
             >

@@ -14,6 +14,7 @@ const LandingPage              = lazy(() => import('./pages/LandingPage').then(m
 const DashboardPage            = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const LoginPage                = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })))
 const RegisterPage             = lazy(() => import('./pages/RegisterPage').then(m => ({ default: m.RegisterPage })))
+const ClinicRegisterPage       = lazy(() => import('./pages/ClinicRegisterPage').then(m => ({ default: m.ClinicRegisterPage })))
 const TriagePage               = lazy(() => import('./pages/TriagePage').then(m => ({ default: m.TriagePage })))
 const ClinicsPage              = lazy(() => import('./pages/ClinicsPage').then(m => ({ default: m.ClinicsPage })))
 const ClinicProfilePage        = lazy(() => import('./pages/ClinicProfilePage').then(m => ({ default: m.ClinicProfilePage })))
@@ -29,12 +30,14 @@ const ClinicLoginPage          = lazy(() => import('./pages/ClinicLoginPage').th
 // Admin pages
 const AdminOverviewPage        = lazy(() => import('./pages/admin/AdminOverviewPage').then(m => ({ default: m.AdminOverviewPage })))
 const AdminClinicsPage         = lazy(() => import('./pages/admin/AdminClinicsPage').then(m => ({ default: m.AdminClinicsPage })))
+const AdminClinicReviewPage    = lazy(() => import('./pages/admin/AdminClinicReviewPage').then(m => ({ default: m.AdminClinicReviewPage })))
 const AdminUsersPage           = lazy(() => import('./pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })))
 const AdminAuditPage           = lazy(() => import('./pages/admin/AdminAuditPage').then(m => ({ default: m.AdminAuditPage })))
 const AdminTriagePage          = lazy(() => import('./pages/admin/AdminTriagePage').then(m => ({ default: m.AdminTriagePage })))
 const AdminSystemPage          = lazy(() => import('./pages/admin/AdminSystemPage').then(m => ({ default: m.AdminSystemPage })))
 const AdminFinancialPage       = lazy(() => import('./pages/admin/AdminFinancialPage').then(m => ({ default: m.AdminFinancialPage })))
 const AdminSettingsPage        = lazy(() => import('./pages/admin/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })))
+const AdminChangeRequestsPage  = lazy(() => import('./pages/admin/AdminChangeRequestsPage').then(m => ({ default: m.AdminChangeRequestsPage })))
 
 // Clinic portal pages
 const ClinicOverviewPage       = lazy(() => import('./pages/clinic/ClinicOverviewPage').then(m => ({ default: m.ClinicOverviewPage })))
@@ -73,6 +76,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuthStore()
   if (!isAuthenticated) return <>{children}</>
+  if (user?.role === 'super_admin') return <Navigate to="/admin" replace />
   if (user && CLINIC_ROLES.includes(user.role)) return <Navigate to="/clinic-dashboard" replace />
   return <Navigate to="/dashboard" replace />
 }
@@ -93,6 +97,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function PatientOrClinicRedirect() {
   const { user } = useAuthStore()
+  if (user?.role === 'super_admin') return <Navigate to="/admin" replace />
   if (user && CLINIC_ROLES.includes(user.role)) return <Navigate to="/clinic-dashboard" replace />
   return <DashboardPage />
 }
@@ -106,22 +111,25 @@ export default function App() {
       <Suspense fallback={<PageSkeleton />}>
         <Routes>
           {/* Public */}
-          <Route path="/"               element={<LandingPage />} />
-          <Route path="/login"          element={<GuestRoute><LoginPage /></GuestRoute>} />
-          <Route path="/clinic-login"   element={<GuestRoute><ClinicLoginPage /></GuestRoute>} />
-          <Route path="/register"       element={<GuestRoute><RegisterPage /></GuestRoute>} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/"                  element={<LandingPage />} />
+          <Route path="/login"             element={<GuestRoute><LoginPage /></GuestRoute>} />
+          <Route path="/clinic-login"      element={<GuestRoute><ClinicLoginPage /></GuestRoute>} />
+          <Route path="/register"          element={<GuestRoute><RegisterPage /></GuestRoute>} />
+          <Route path="/register/clinic"   element={<ClinicRegisterPage />} />
+          <Route path="/forgot-password"   element={<ForgotPasswordPage />} />
 
           {/* Super admin console — super_admin only */}
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-            <Route index               element={<AdminOverviewPage />} />
-            <Route path="clinics"      element={<AdminClinicsPage />} />
-            <Route path="users"        element={<AdminUsersPage />} />
-            <Route path="audit"        element={<AdminAuditPage />} />
-            <Route path="triage"       element={<AdminTriagePage />} />
-            <Route path="system"       element={<AdminSystemPage />} />
-            <Route path="financial"    element={<AdminFinancialPage />} />
-            <Route path="settings"     element={<AdminSettingsPage />} />
+            <Route index                          element={<AdminOverviewPage />} />
+            <Route path="clinics"                 element={<AdminClinicsPage />} />
+            <Route path="clinics/:id/review"      element={<AdminClinicReviewPage />} />
+            <Route path="change-requests"         element={<AdminChangeRequestsPage />} />
+            <Route path="users"                   element={<AdminUsersPage />} />
+            <Route path="audit"                   element={<AdminAuditPage />} />
+            <Route path="triage"                  element={<AdminTriagePage />} />
+            <Route path="system"                  element={<AdminSystemPage />} />
+            <Route path="financial"               element={<AdminFinancialPage />} />
+            <Route path="settings"                element={<AdminSettingsPage />} />
           </Route>
 
           {/* Clinic portal — all clinic staff roles */}

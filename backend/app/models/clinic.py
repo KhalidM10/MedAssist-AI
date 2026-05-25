@@ -5,8 +5,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, DateTime, Index,
-    Numeric, String, Text, func,
+    Boolean, CheckConstraint, DateTime, ForeignKey, Index,
+    Integer, Numeric, String, Text, func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,6 +18,13 @@ class SubscriptionPlan(str, Enum):
     BASIC = "basic"
     PRO = "pro"
     ENTERPRISE = "enterprise"
+
+
+class ApprovalStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SUSPENDED = "suspended"
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -67,6 +74,19 @@ class Clinic(Base):
     # Status
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Approval workflow
+    approval_status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    approval_notes: Mapped[Optional[str]] = mapped_column(Text)
+    approved_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    registration_reference: Mapped[Optional[str]] = mapped_column(String(20), unique=True)
+    documents: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    business_registration_number: Mapped[Optional[str]] = mapped_column(String(100))
+    year_established: Mapped[Optional[int]] = mapped_column(Integer)
 
     # Subscription
     subscription_plan: Mapped[str] = mapped_column(

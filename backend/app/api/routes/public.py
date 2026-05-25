@@ -16,7 +16,7 @@ def platform_public_stats(db: Session = Depends(get_db)):
     """Public endpoint — returns aggregate platform counts for the landing page."""
     return {
         "total_clinics": db.query(func.count(Clinic.id)).filter(
-            Clinic.is_verified == True, Clinic.is_active == True
+            Clinic.approval_status == "approved", Clinic.is_active == True
         ).scalar() or 0,
         "total_triage_sessions": db.query(func.count(TriageSession.id)).scalar() or 0,
         "total_appointments": db.query(func.count(Appointment.id)).filter(

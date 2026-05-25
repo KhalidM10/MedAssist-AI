@@ -1,26 +1,41 @@
-from datetime import date, timedelta
+import uuid
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import get_current_user, get_db, require_role
-from app.models.analytics import AnalyticsSnapshot
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.clinic import Clinic
 from app.models.doctor import Doctor
 from app.models.order import Order, OrderStatus
+from app.models.review import Review
 from app.models.triage import SymptomLog, TriageSession
 from app.models.user import User, UserRole
+
+
+class _ReplyBody(BaseModel):
+    reply: str
+
+
+class _ChangeRequestBody(BaseModel):
+    field_name: str
+    current_value: Optional[str] = None
+    requested_value: str
+    reason: Optional[str] = None
 
 router = APIRouter()
 
 
 def _get_clinic(current_user: User, db: Session) -> Clinic:
-    clinic = db.query(Clinic).filter(Clinic.owner_id == current_user.id).first()
-    if not clinic:
+    if not current_user.clinic_id:
         raise HTTPException(status_code=404, detail="No clinic associated with this account")
+    clinic = db.query(Clinic).filter(Clinic.id == current_user.clinic_id).first()
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Clinic not found")
     return clinic
 
 
@@ -30,9 +45,6 @@ def _subtract_months(d: date, months: int) -> date:
     month = month % 12 or 12
     return d.replace(year=year, month=month, day=1)
 
-
-def _clinic_seed(clinic_id) -> int:
-    return int(str(clinic_id).replace("-", ""), 16) % 1000
 
 
 # ── Stats overview ────────────────────────────────────────────────────────────
@@ -63,7 +75,7 @@ def clinic_stats(
             "total_revenue_kes": float(total_revenue),
         }
 
-    clinic = db.query(Clinic).filter(Clinic.owner_id == current_user.id).first()
+    clinic = db.query(Clinic).filter(Clinic.id == current_user.clinic_id).first() if current_user.clinic_id else None
     if not clinic:
         return {
             "role": "clinic_admin", "clinic_name": None, "clinic_county": None,
@@ -98,10 +110,11 @@ def clinic_stats(
 
     # Week revenue (Mon–Sun of current week)
     week_start = today - timedelta(days=today.weekday())
-    week_revenue = db.query(func.coalesce(func.sum(AnalyticsSnapshot.total_revenue_kes), 0)).filter(
-        AnalyticsSnapshot.clinic_id == clinic.id,
-        AnalyticsSnapshot.date >= week_start,
-        AnalyticsSnapshot.date <= today,
+    week_revenue = db.query(func.coalesce(func.sum(Appointment.amount_kes), 0)).filter(
+        Appointment.clinic_id == clinic.id,
+        Appointment.status == AppointmentStatus.COMPLETED,
+        Appointment.appointment_date >= week_start,
+        Appointment.appointment_date <= today,
     ).scalar() or 0
 
     pending_orders = db.query(func.count(Order.id)).filter(
@@ -135,45 +148,33 @@ def clinic_analytics(
 ):
     clinic = _get_clinic(current_user, db)
     today = date.today()
-    seed = _clinic_seed(clinic.id)
-    plan = clinic.subscription_plan.value
-    base_appts = {"basic": 28, "pro": 52, "enterprise": 90}[plan]
-    base_rev = {"basic": 38000, "pro": 72000, "enterprise": 145000}[plan]
 
-    # ── Weekly appointment trend (last 8 weeks) ───────────────────────────────
+    # ── Weekly appointment trend (last 8 weeks) — real data only ─────────────
     weekly_trend = []
     for w in range(7, -1, -1):
         week_start = today - timedelta(weeks=w, days=today.weekday())
         week_end = week_start + timedelta(days=6)
 
-        real_appts = db.query(func.coalesce(func.sum(AnalyticsSnapshot.total_appointments), 0)).filter(
-            AnalyticsSnapshot.clinic_id == clinic.id,
-            AnalyticsSnapshot.date >= week_start,
-            AnalyticsSnapshot.date <= min(week_end, today),
+        appts = db.query(func.count(Appointment.id)).filter(
+            Appointment.clinic_id == clinic.id,
+            Appointment.appointment_date >= week_start,
+            Appointment.appointment_date <= min(week_end, today),
         ).scalar() or 0
 
-        real_rev = db.query(func.coalesce(func.sum(AnalyticsSnapshot.total_revenue_kes), 0)).filter(
-            AnalyticsSnapshot.clinic_id == clinic.id,
-            AnalyticsSnapshot.date >= week_start,
-            AnalyticsSnapshot.date <= min(week_end, today),
+        rev = db.query(func.coalesce(func.sum(Appointment.amount_kes), 0)).filter(
+            Appointment.clinic_id == clinic.id,
+            Appointment.status == AppointmentStatus.COMPLETED,
+            Appointment.appointment_date >= week_start,
+            Appointment.appointment_date <= min(week_end, today),
         ).scalar() or 0
-
-        if real_appts > 0:
-            appts = int(real_appts)
-            rev = float(real_rev)
-        else:
-            growth = int((7 - w) * base_appts * 0.04)
-            noise = ((seed + w * 13) % 21) - 10
-            appts = max(5, base_appts + growth + noise)
-            rev = appts * (base_rev // base_appts) * (1 + ((seed + w) % 20 - 10) / 100)
 
         weekly_trend.append({
             "label": week_start.strftime("%b %d"),
-            "appointments": appts,
-            "revenue": round(rev),
+            "appointments": int(appts),
+            "revenue": round(float(rev)),
         })
 
-    # ── Monthly revenue (last 6 months) ──────────────────────────────────────
+    # ── Monthly revenue (last 6 months) — real data only ─────────────────────
     monthly_revenue = []
     for m in range(5, -1, -1):
         month_start = _subtract_months(today.replace(day=1), m)
@@ -183,25 +184,19 @@ def clinic_analytics(
             next_ms = _subtract_months(today.replace(day=1), m - 1)
             month_end = next_ms - timedelta(days=1)
 
-        real_rev = db.query(func.coalesce(func.sum(AnalyticsSnapshot.total_revenue_kes), 0)).filter(
-            AnalyticsSnapshot.clinic_id == clinic.id,
-            AnalyticsSnapshot.date >= month_start,
-            AnalyticsSnapshot.date <= month_end,
+        rev = db.query(func.coalesce(func.sum(Appointment.amount_kes), 0)).filter(
+            Appointment.clinic_id == clinic.id,
+            Appointment.status == AppointmentStatus.COMPLETED,
+            Appointment.appointment_date >= month_start,
+            Appointment.appointment_date <= month_end,
         ).scalar() or 0
-
-        if real_rev > 0:
-            rev = float(real_rev)
-        else:
-            growth = int((5 - m) * base_rev * 0.05)
-            noise = ((seed + m * 17) % 30 - 15) * (base_rev // 100)
-            rev = max(base_rev * 0.6, base_rev + growth + noise)
 
         monthly_revenue.append({
             "month": month_start.strftime("%b"),
-            "revenue": round(rev),
+            "revenue": round(float(rev)),
         })
 
-    # ── Top symptoms (anonymised — by county, no patient data) ───────────────
+    # ── Top symptoms from real triage sessions in this county ────────────────
     symptom_rows = (
         db.query(
             SymptomLog.symptom_name,
@@ -214,39 +209,7 @@ def clinic_analytics(
         .limit(10)
         .all()
     )
-
-    if symptom_rows:
-        top_symptoms = [{"symptom": r.symptom_name.title(), "count": r.cnt} for r in symptom_rows]
-    else:
-        top_symptoms = [
-            {"symptom": "Fever",           "count": 142 + seed % 30},
-            {"symptom": "Headache",        "count": 118 + seed % 25},
-            {"symptom": "Cough",           "count": 97  + seed % 20},
-            {"symptom": "Malaria",         "count": 89  + seed % 18},
-            {"symptom": "Back Pain",       "count": 76  + seed % 15},
-            {"symptom": "Fatigue",         "count": 68  + seed % 14},
-            {"symptom": "Stomach Ache",    "count": 54  + seed % 12},
-            {"symptom": "Chest Pain",      "count": 41  + seed % 10},
-            {"symptom": "Joint Pain",      "count": 35  + seed % 8},
-            {"symptom": "Skin Rash",       "count": 28  + seed % 7},
-        ]
-
-    # ── Peak hours (generated — no per-hour appointment data yet) ────────────
-    peak_hours = []
-    for hour in range(8, 18):
-        if hour in (8, 9):
-            vol = 60 + (seed % 20)
-        elif hour in (10, 11):
-            vol = 85 + (seed % 15)
-        elif hour == 12:
-            vol = 50 + (seed % 15)
-        elif hour in (13, 14):
-            vol = 75 + (seed % 18)
-        elif hour in (15, 16):
-            vol = 65 + (seed % 12)
-        else:
-            vol = 40 + (seed % 10)
-        peak_hours.append({"hour": f"{hour:02d}:00", "bookings": vol})
+    top_symptoms = [{"symptom": r.symptom_name.title(), "count": r.cnt} for r in symptom_rows]
 
     # ── Completion rate ───────────────────────────────────────────────────────
     total_a = db.query(func.count(Appointment.id)).filter(Appointment.clinic_id == clinic.id).scalar() or 0
@@ -259,7 +222,6 @@ def clinic_analytics(
         "weekly_trend": weekly_trend,
         "monthly_revenue": monthly_revenue,
         "top_symptoms": top_symptoms,
-        "peak_hours": peak_hours,
         "completion_rate": completion_rate,
     }
 
@@ -423,3 +385,150 @@ def clinic_doctors(
         }
         for d in doctors
     ]
+
+
+# ── Reviews ───────────────────────────────────────────────────────────────────
+
+@router.get("/reviews")
+def clinic_reviews(
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    clinic = _get_clinic(current_user, db)
+    reviews = (
+        db.query(Review)
+        .options(joinedload(Review.patient), joinedload(Review.doctor))
+        .filter(Review.clinic_id == clinic.id, Review.is_published == True)
+        .order_by(Review.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "id": str(r.id),
+            "patient_name": r.patient.full_name if r.patient else "Anonymous",
+            "rating": r.rating,
+            "title": r.title,
+            "body": r.body,
+            "created_at": r.created_at.isoformat(),
+            "is_verified": r.is_verified,
+            "doctor_name": r.doctor.full_name if r.doctor else None,
+            "response": r.response,
+            "response_at": r.response_at.isoformat() if r.response_at else None,
+        }
+        for r in reviews
+    ]
+
+
+@router.post("/reviews/{review_id}/reply")
+def reply_to_review(
+    review_id: str,
+    body: _ReplyBody,
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    clinic = _get_clinic(current_user, db)
+    review = db.query(Review).filter(
+        Review.id == review_id, Review.clinic_id == clinic.id
+    ).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    review.response = body.reply
+    review.response_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Staff (clinic team members) ──────────────────────────────────────────────
+
+@router.get("/staff")
+def clinic_staff(
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    clinic = _get_clinic(current_user, db)
+    staff = (
+        db.query(User)
+        .filter(
+            User.clinic_id == clinic.id,
+            User.role != UserRole.PATIENT,
+        )
+        .order_by(User.created_at)
+        .all()
+    )
+    return [
+        {
+            "id": str(u.id),
+            "full_name": u.full_name,
+            "email": u.email,
+            "role": u.role,
+            "is_active": u.is_active,
+            "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
+        }
+        for u in staff
+    ]
+
+
+# ── Orders (clinic view) ──────────────────────────────────────────────────────
+
+@router.get("/orders")
+def clinic_orders(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    limit: int = Query(50, le=200),
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    clinic = _get_clinic(current_user, db)
+    q = (
+        db.query(Order)
+        .join(User, User.id == Order.patient_id)
+        .add_columns(User.full_name.label("patient_name"))
+        .filter(Order.clinic_id == clinic.id)
+    )
+    if status_filter:
+        q = q.filter(Order.status == status_filter)
+    rows = q.order_by(Order.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": str(order.id),
+            "order_number": order.order_number,
+            "patient_name": patient_name,
+            "items": order.items or [],
+            "total_kes": float(order.total_kes),
+            "status": order.status,
+            "delivery_method": order.delivery_method,
+            "payment_method": order.payment_method,
+            "created_at": order.created_at.isoformat(),
+        }
+        for order, patient_name in rows
+    ]
+
+
+# ── Change requests ───────────────────────────────────────────────────────────
+
+@router.post("/change-requests", status_code=201)
+def submit_change_request(
+    body: _ChangeRequestBody,
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """Clinic admin submits a request to change a locked field (e.g. clinic name, address)."""
+    from sqlalchemy import text
+
+    clinic = _get_clinic(current_user, db)
+    db.execute(text("""
+        INSERT INTO clinic_change_requests
+            (id, clinic_id, requested_by, field_name, current_value, requested_value, reason)
+        VALUES
+            (:id, :clinic_id, :requested_by, :field_name, :current_value, :requested_value, :reason)
+    """), {
+        "id": str(uuid.uuid4()),
+        "clinic_id": str(clinic.id),
+        "requested_by": str(current_user.id),
+        "field_name": body.field_name,
+        "current_value": body.current_value,
+        "requested_value": body.requested_value,
+        "reason": body.reason,
+    })
+    db.commit()
+    return {"ok": True, "message": "Change request submitted. A super admin will review it shortly."}

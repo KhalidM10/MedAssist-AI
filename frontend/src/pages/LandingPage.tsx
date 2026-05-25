@@ -632,13 +632,13 @@ export function LandingPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <Link to="/register" style={{
+                <Link to="/register/clinic" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   background: C.brand, color: 'white', textDecoration: 'none',
                   padding: '13px 24px', borderRadius: 4, fontSize: 14, fontWeight: 500,
                   fontFamily: BODY,
                 }}>
-                  Get Your Clinic Listed <ArrowRight size={14} />
+                  Register Your Clinic <ArrowRight size={14} />
                 </Link>
                 <span style={{ fontSize: 12, color: `${C.canvas}44`, fontFamily: BODY }}>Free 14-day trial · No credit card</span>
               </div>
@@ -1097,8 +1097,8 @@ export function LandingPage() {
             </div>
             <div>
               <p style={{ fontSize: 10, fontWeight: 400, color: `${C.canvas}30`, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20, fontFamily: BODY }}>For Clinics</p>
-              {['Get Listed', 'Dashboard', 'Pricing', 'API Access'].map(l => (
-                <Link key={l} to="/register" style={{ display: 'block', fontSize: 13, color: `${C.canvas}50`, textDecoration: 'none', marginBottom: 12, fontWeight: 300, fontFamily: BODY }}>{l}</Link>
+              {[['Register Clinic', '/register/clinic'], ['Clinic Dashboard', '/clinic-dashboard'], ['Pricing', '/#pricing'], ['API Access', '/docs']].map(([l, href]) => (
+                <Link key={l} to={href} style={{ display: 'block', fontSize: 13, color: `${C.canvas}50`, textDecoration: 'none', marginBottom: 12, fontWeight: 300, fontFamily: BODY }}>{l}</Link>
               ))}
             </div>
             <div>

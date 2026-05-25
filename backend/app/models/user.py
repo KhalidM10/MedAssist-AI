@@ -69,6 +69,14 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_clinic_approved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Moderation
+    warning_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    suspension_reason: Mapped[Optional[str]] = mapped_column(Text)
+    suspension_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ban_reason: Mapped[Optional[str]] = mapped_column(Text)
+    banned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     # Login tracking
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

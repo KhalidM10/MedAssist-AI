@@ -694,7 +694,7 @@ export function ClinicsPage() {
                   We are onboarding verified clinics across Kenya. Check back soon or register your clinic to be among the first.
                 </p>
                 <Link
-                  to="/register"
+                  to="/register/clinic"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
