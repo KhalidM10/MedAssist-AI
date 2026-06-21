@@ -6,8 +6,8 @@ Create Date: 2026-06-21
 """
 from alembic import op
 
-revision = '0006'
-down_revision = '0005'
+revision = '0006_drop_stripe_customer_id'
+down_revision = '0005_clinic_onboarding'
 branch_labels = None
 depends_on = None
 
