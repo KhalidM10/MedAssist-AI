@@ -28,6 +28,7 @@ const DAY_MAP: Record<number, string> = {
   4: 'thursday', 5: 'friday', 6: 'saturday',
 }
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const PYTHON_DAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 // ── Calendar ────────────────────────────────────────────────────────────────
 
@@ -206,11 +207,11 @@ export function BookingFlow() {
     mutationFn: async () => {
       const { data } = await api.post('/appointments/', {
         clinic_id: clinicId,
-        doctor_id: selectedSlot!.doctor_id ?? selectedDoctor?.id ?? null,
+        doctor_id: selectedDoctor?.id ?? null,
         appointment_date: selectedDate,
         appointment_time: selectedSlot!.time + ':00',
         reason: reason || null,
-        amount_kes: selectedSlot!.fee_kes ?? 0,
+        amount_kes: selectedDoctor?.consultation_fee_kes ?? 0,
       })
       return data as Appointment
     },
@@ -319,12 +320,12 @@ export function BookingFlow() {
               </div>
             </div>
           ))}
-          {selectedSlot && (
+          {selectedDoctor && (
             <div className="flex items-center gap-3 px-4 py-3">
               <Stethoscope className="h-3.5 w-3.5 text-gray-400" />
               <div>
                 <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Consultation Fee</p>
-                <p className="text-sm font-bold text-gray-900">KES {selectedSlot.fee_kes.toLocaleString()}</p>
+                <p className="text-sm font-bold text-gray-900">KES {selectedDoctor.consultation_fee_kes.toLocaleString()}</p>
               </div>
             </div>
           )}
@@ -425,7 +426,7 @@ export function BookingFlow() {
                     </p>
                     <p className="text-xs text-blue-600 font-semibold">{doc.specialty}</p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      KES {doc.consultation_fee_kes.toLocaleString()} · {doc.available_days?.slice(0, 3).map(d => d.slice(0, 3)).join(', ')}
+                      KES {doc.consultation_fee_kes.toLocaleString()} · {doc.available_days?.slice(0, 3).map(d => PYTHON_DAY_NAMES[d]?.slice(0, 3) ?? '').join(', ')}
                     </p>
                   </div>
                   {sel && <Check className="h-5 w-5 text-blue-600 shrink-0" />}
@@ -440,7 +441,7 @@ export function BookingFlow() {
           <MonthCalendar
             value={selectedDate}
             onChange={(d) => { setSelectedDate(d); setSelectedSlot(null) }}
-            availableDays={selectedDoctor?.available_days ?? ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']}
+            availableDays={selectedDoctor?.available_days?.map(d => PYTHON_DAY_NAMES[d]) ?? ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']}
           />
         )}
 
@@ -459,7 +460,7 @@ export function BookingFlow() {
                   <div key={i} className="h-10 rounded-xl bg-gray-100 animate-pulse" />
                 ))}
               </div>
-            ) : !daySlots?.slots?.length ? (
+            ) : !daySlots?.slots?.filter(s => s.is_available).length ? (
               <div className="flex flex-col items-center py-10 text-center">
                 <Clock className="h-8 w-8 text-gray-300 mb-3" />
                 <p className="text-sm text-gray-500 font-semibold">No available slots</p>
@@ -473,11 +474,11 @@ export function BookingFlow() {
               </div>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {daySlots.slots.map(slot => {
-                  const sel = selectedSlot?.time === slot.time && selectedSlot?.doctor_id === slot.doctor_id
+                {daySlots.slots.filter(s => s.is_available).map(slot => {
+                  const sel = selectedSlot?.time === slot.time
                   return (
                     <button
-                      key={`${slot.doctor_id}-${slot.time}`}
+                      key={slot.time}
                       onClick={() => setSelectedSlot(sel ? null : slot)}
                       className={cn(
                         'rounded-xl border py-2.5 text-sm font-semibold transition-all',
@@ -494,7 +495,7 @@ export function BookingFlow() {
             )}
             {selectedSlot && (
               <div className="mt-4 p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700 font-semibold">
-                {selectedSlot.time} with {selectedSlot.doctor_name} · KES {selectedSlot.fee_kes.toLocaleString()}
+                {selectedSlot.time}{selectedDoctor ? ` with ${selectedDoctor.full_name}` : ''}{selectedDoctor ? ` · KES ${selectedDoctor.consultation_fee_kes.toLocaleString()}` : ''}
               </div>
             )}
           </div>
@@ -530,7 +531,7 @@ export function BookingFlow() {
               { label: 'Time', value: selectedSlot?.time ?? '—' },
               { label: 'Clinic', value: clinic.name },
               { label: 'Address', value: clinic.address },
-              { label: 'Fee', value: selectedSlot ? `KES ${selectedSlot.fee_kes.toLocaleString()}` : '—' },
+              { label: 'Fee', value: selectedDoctor ? `KES ${selectedDoctor.consultation_fee_kes.toLocaleString()}` : '—' },
               ...(reason ? [{ label: 'Reason', value: reason }] : []),
             ].map(row => (
               <div key={row.label} className="flex justify-between gap-4 py-3">

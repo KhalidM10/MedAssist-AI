@@ -11,6 +11,7 @@ interface AuthState {
   register: (data: RegisterData) => Promise<void>
   refreshPermissions: () => Promise<void>
   logout: () => void
+  clearSession: () => void
 }
 
 interface RegisterData {
@@ -62,6 +63,10 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         api.post('/auth/logout').catch(() => {})
+        set({ user: null, permissions: [], isAuthenticated: false })
+      },
+
+      clearSession: () => {
         set({ user: null, permissions: [], isAuthenticated: false })
       },
     }),

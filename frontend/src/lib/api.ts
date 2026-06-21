@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import { useAuthStore } from '../store/auth'
 
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -55,7 +56,9 @@ api.interceptors.response.use(
         return api(original)
       } catch (refreshError) {
         processQueue(refreshError)
-        window.location.href = '/login'
+        useAuthStore.getState().clearSession()
+        const next = encodeURIComponent(window.location.pathname + window.location.search)
+        window.location.replace(`/login?next=${next}`)
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

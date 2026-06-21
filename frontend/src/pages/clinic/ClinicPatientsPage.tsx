@@ -27,10 +27,10 @@ interface PatientSummary {
 }
 
 const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
-  pending:   { bg: '#FEF3C7', text: '#92400E' },
-  confirmed: { bg: '#DBEAFE', text: '#1E40AF' },
-  completed: { bg: '#D1FAE5', text: '#065F46' },
-  cancelled: { bg: '#FEE2E2', text: '#991B1B' },
+  pending:   { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  confirmed: { bg: 'var(--color-brand-light)',   text: 'var(--color-brand)' },
+  completed: { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  cancelled: { bg: 'var(--color-danger-light)',  text: 'var(--color-danger)' },
 }
 
 function PatientRow({ patient, onSelect, selected }: {
@@ -41,38 +41,38 @@ function PatientRow({ patient, onSelect, selected }: {
   return (
     <button
       onClick={onSelect}
-      className={cn(
-        'w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors',
-        selected ? 'bg-blue-50' : 'hover:bg-gray-50',
-      )}
+      className="w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors"
+      style={{ backgroundColor: selected ? 'var(--color-brand-light)' : 'transparent' }}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.backgroundColor = 'var(--color-surface-2)' }}
+      onMouseLeave={e => { if (!selected) e.currentTarget.style.backgroundColor = 'transparent' }}
     >
       <div
-        className="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center text-sm font-extrabold"
-        style={{ backgroundColor: '#EFF6FF', color: '#1E40AF' }}
+        className="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center text-sm font-bold"
+        style={{ backgroundColor: 'var(--color-brand-light)', color: 'var(--color-brand)' }}
       >
         {patient.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900 truncate">{patient.name}</p>
-        <p className="text-xs text-gray-400 mt-0.5">
+        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>{patient.name}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
           Last visit: {format(parseISO(patient.lastVisit), 'd MMM yyyy')}
         </p>
       </div>
 
       <div className="text-right shrink-0">
-        <p className="text-sm font-bold text-gray-900">{patient.totalVisits}</p>
-        <p className="text-[10px] text-gray-400">visits</p>
+        <p className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>{patient.totalVisits}</p>
+        <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>visits</p>
       </div>
 
       <span
         className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
-        style={STATUS_COLOR[patient.lastStatus] ?? { bg: '#F3F4F6', text: '#374151' }}
+        style={STATUS_COLOR[patient.lastStatus] ?? { backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text-secondary)' }}
       >
         {patient.lastStatus}
       </span>
 
-      <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
+      <ChevronRight className="h-4 w-4 shrink-0" style={{ color: 'var(--color-border-strong)' }} />
     </button>
   )
 }
@@ -90,38 +90,38 @@ function PatientDetail({ patient, appointments }: {
       {/* Profile header */}
       <div className="flex items-center gap-4">
         <div
-          className="h-14 w-14 rounded-2xl flex items-center justify-center text-xl font-extrabold"
-          style={{ backgroundColor: '#EFF6FF', color: '#1E40AF' }}
+          className="h-14 w-14 rounded-2xl flex items-center justify-center text-xl font-bold"
+          style={{ backgroundColor: 'var(--color-brand-light)', color: 'var(--color-brand)' }}
         >
           {patient.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
         </div>
         <div>
-          <h3 className="text-base font-extrabold text-gray-900">{patient.name}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{patient.totalVisits} total appointments</p>
+          <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>{patient.name}</h3>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{patient.totalVisits} total appointments</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total Visits', val: patient.totalVisits.toString(), color: '#1E40AF' },
-          { label: 'Upcoming', val: patient.upcomingCount.toString(), color: '#059669' },
-          { label: 'Spent (KES)', val: patient.totalSpentKes.toLocaleString(), color: '#D97706' },
+          { label: 'Total Visits', val: patient.totalVisits.toString(), color: 'var(--color-brand)' },
+          { label: 'Upcoming',     val: patient.upcomingCount.toString(), color: 'var(--color-success)' },
+          { label: 'Spent (KES)',  val: patient.totalSpentKes.toLocaleString(), color: 'var(--color-warning)' },
         ].map(s => (
           <div
             key={s.label}
             className="rounded-xl p-3 text-center"
-            style={{ backgroundColor: '#F8FAFC' }}
+            style={{ backgroundColor: 'var(--color-surface-2)' }}
           >
-            <p className="text-lg font-extrabold" style={{ color: s.color }}>{s.val}</p>
-            <p className="text-[10px] text-gray-400 font-medium mt-0.5">{s.label}</p>
+            <p className="text-lg font-bold" style={{ color: s.color, fontFamily: 'var(--font-display)' }}>{s.val}</p>
+            <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Appointment history */}
       <div>
-        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+        <h4 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-tertiary)' }}>
           Appointment History
         </h4>
         <div className="space-y-2">
@@ -129,7 +129,7 @@ function PatientDetail({ patient, appointments }: {
             <div
               key={appt.id}
               className="flex items-start gap-3 rounded-xl p-3"
-              style={{ backgroundColor: '#F8FAFC' }}
+              style={{ backgroundColor: 'var(--color-surface-2)' }}
             >
               <div className="mt-0.5">
                 <Calendar className="h-4 w-4 text-gray-400" />
@@ -211,27 +211,19 @@ export function ClinicPatientsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Patients</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
+          <h1 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>Patients</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
             {patients.length} unique patients from appointment history
           </p>
         </div>
         <div className="flex gap-3">
           {[
-            { label: 'Total', val: patients.length, color: '#1E40AF' },
-            {
-              label: 'With Upcoming',
-              val: patients.filter(p => p.upcomingCount > 0).length,
-              color: '#059669',
-            },
+            { label: 'Total',         val: patients.length,                                   color: 'var(--color-brand)' },
+            { label: 'With Upcoming', val: patients.filter(p => p.upcomingCount > 0).length,  color: 'var(--color-success)' },
           ].map(s => (
-            <div
-              key={s.label}
-              className="bg-white rounded-xl px-4 py-2.5 text-center"
-              style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-            >
-              <p className="text-xl font-extrabold" style={{ color: s.color }}>{s.val}</p>
-              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mt-0.5">{s.label}</p>
+            <div key={s.label} className="card px-4 py-2.5 text-center">
+              <p className="text-xl font-bold" style={{ color: s.color, fontFamily: 'var(--font-display)' }}>{s.val}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{s.label}</p>
             </div>
           ))}
         </div>
@@ -239,12 +231,12 @@ export function ClinicPatientsPage() {
 
       {/* Two-panel layout */}
       <div
-        className="bg-white rounded-2xl overflow-hidden flex"
-        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)', minHeight: 480 }}
+        className="card overflow-hidden flex"
+        style={{ minHeight: 480 }}
       >
         {/* Left: list */}
-        <div className="w-80 shrink-0 flex flex-col" style={{ borderRight: '1px solid #F1F5F9' }}>
-          <div className="p-4" style={{ borderBottom: '1px solid #F1F5F9' }}>
+        <div className="w-80 shrink-0 flex flex-col" style={{ borderRight: '1px solid var(--color-border)' }}>
+          <div className="p-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input

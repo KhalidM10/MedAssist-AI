@@ -11,7 +11,6 @@ export const CLINIC_ROLES: UserRole[] = [
   'clinic_doctor',
   'clinic_receptionist',
   'clinic_pharmacist',
-  'super_admin',
 ]
 
 export interface User {
@@ -50,13 +49,22 @@ export interface Patient {
   created_at: string
 }
 
+export interface NextAvailableSlot {
+  doctor_name: string
+  date: string    // "2026-05-24"
+  time: string    // "14:00"
+}
+
 export interface Clinic {
   id: string
+  slug: string
   name: string
   address: string
   county: string
   phone: string
   email: string | null
+  logo_url: string | null
+  cover_image_url: string | null
   latitude: number | null
   longitude: number | null
   is_verified: boolean
@@ -64,7 +72,18 @@ export interface Clinic {
   operating_hours: Record<string, { open: string; close: string }>
   distance_km: number | null
   next_available: string | null
-  doctor_count: number
+  next_available_slot: NextAvailableSlot | null
+  rating: number
+  total_reviews: number
+  doctors_count: number
+  is_open_now: boolean
+}
+
+export interface PaginatedClinics {
+  clinics: Clinic[]
+  total: number
+  page: number
+  total_pages: number
 }
 
 export interface Doctor {
@@ -72,19 +91,43 @@ export interface Doctor {
   clinic_id: string
   full_name: string
   specialty: string
+  sub_specialty: string | null
   qualification: string | null
+  license_number: string | null
   bio: string | null
-  available_days: string[]
+  available_days: number[]   // 0=Mon … 6=Sun
+  slot_duration_minutes: number
   consultation_fee_kes: number
   photo_url: string | null
+  rating: number
+  total_reviews: number
   is_active: boolean
+  next_available: NextAvailableSlot | null
 }
 
-export interface ClinicDetail extends Clinic {
-  owner_id: string
+export interface ClinicReview {
+  id: string
+  patient_name: string
+  rating: number
+  title: string | null
+  body: string | null
+  created_at: string
+  is_verified: boolean
+  doctor_name: string | null
+  response: string | null
+  response_at: string | null
+}
+
+export interface ClinicDetail extends Omit<Clinic, 'doctors_count'> {
+  website: string | null
+  description: string | null
   license_number: string | null
   subscription_plan: string
+  is_open_now: boolean
+  rating_breakdown: Record<number, number>
   doctors: Doctor[]
+  reviews: ClinicReview[]
+  doctors_count: number
 }
 
 export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
@@ -109,9 +152,7 @@ export interface Appointment {
 
 export interface TimeSlot {
   time: string
-  doctor_id: string
-  doctor_name: string
-  fee_kes: number
+  is_available: boolean
 }
 
 export interface DaySlots {

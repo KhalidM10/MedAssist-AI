@@ -28,17 +28,6 @@ const CATEGORIES = [
   { key: 'first_aid',   label: 'First Aid' },
 ]
 
-const CAT_STYLE: Record<string, { bg: string; text: string }> = {
-  pain_relief: { bg: '#FEF2F2', text: '#DC2626' },
-  vitamins:    { bg: '#FFFBEB', text: '#B45309' },
-  cold_flu:    { bg: '#EFF6FF', text: '#1D4ED8' },
-  digestive:   { bg: '#F0FDFA', text: '#0F766E' },
-  skin_care:   { bg: '#FDF4FF', text: '#9333EA' },
-  baby_care:   { bg: '#F0F9FF', text: '#0369A1' },
-  first_aid:   { bg: '#FFF7ED', text: '#C2410C' },
-  general:     { bg: '#F9FAFB', text: '#6B7280' },
-}
-
 const DELIVERY_FEE = 200
 
 // ── Checkout schema ────────────────────────────────────────────────────────
@@ -70,24 +59,20 @@ function ProductCard({
   onAdd: () => void
   onUpdateQty: (delta: number) => void
 }) {
-  const style = CAT_STYLE[product.category] ?? CAT_STYLE.general
   const catLabel = CATEGORIES.find(c => c.key === product.category)?.label ?? product.category
 
   return (
-    <div
-      className="bg-white rounded-2xl p-4 flex flex-col gap-3 border border-gray-100 hover:border-gray-200 transition-all"
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
-    >
+    <div className="card p-4 flex flex-col gap-3 hover:shadow-md transition-all">
       {/* Category badge */}
       <div className="flex items-center justify-between gap-2">
         <span
           className="text-[10px] font-bold rounded-full px-2.5 py-1 leading-none"
-          style={{ backgroundColor: style.bg, color: style.text }}
+          style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text-secondary)' }}
         >
           {catLabel}
         </span>
         {product.stock_quantity <= 10 && product.stock_quantity > 0 && (
-          <span className="text-[10px] font-semibold text-amber-600">
+          <span className="text-[10px] font-semibold" style={{ color: 'var(--color-warning)' }}>
             Only {product.stock_quantity} left
           </span>
         )}
@@ -95,9 +80,9 @@ function ProductCard({
 
       {/* Name + description */}
       <div className="flex-1">
-        <p className="text-[13px] font-bold text-gray-900 leading-tight">{product.name}</p>
+        <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--color-text-primary)' }}>{product.name}</p>
         {product.description && (
-          <p className="text-[11px] text-gray-400 mt-1 leading-relaxed line-clamp-2">
+          <p className="text-[11px] mt-1 leading-relaxed line-clamp-2" style={{ color: 'var(--color-text-tertiary)' }}>
             {product.description}
           </p>
         )}
@@ -105,11 +90,11 @@ function ProductCard({
 
       {/* Price + source */}
       <div>
-        <p className="text-base font-extrabold text-gray-900">
+        <p className="text-base font-bold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>
           KES {product.price_kes.toLocaleString()}
         </p>
         {product.clinic_name && (
-          <p className="text-[10px] text-gray-400 mt-0.5">{product.clinic_name}</p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{product.clinic_name}</p>
         )}
       </div>
 
@@ -118,22 +103,28 @@ function ProductCard({
         <button
           onClick={onAdd}
           className="w-full rounded-xl py-2 text-xs font-bold text-white transition-all hover:opacity-90 active:scale-[0.98]"
-          style={{ backgroundColor: '#1E40AF' }}
+          style={{ backgroundColor: 'var(--color-brand)' }}
         >
           Add to cart
         </button>
       ) : (
-        <div className="flex items-center justify-between rounded-xl overflow-hidden border" style={{ borderColor: '#1E40AF' }}>
+        <div className="flex items-center justify-between rounded-xl overflow-hidden border" style={{ borderColor: 'var(--color-brand)' }}>
           <button
             onClick={() => onUpdateQty(-1)}
-            className="flex-1 py-2 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+            className="flex-1 py-2 flex items-center justify-center transition-colors"
+            style={{ color: 'var(--color-text-secondary)' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             <Minus className="h-3.5 w-3.5" />
           </button>
-          <span className="text-sm font-extrabold text-gray-900 px-3">{cartQty}</span>
+          <span className="text-sm font-bold px-3" style={{ color: 'var(--color-text-primary)' }}>{cartQty}</span>
           <button
             onClick={() => onUpdateQty(1)}
-            className="flex-1 py-2 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+            className="flex-1 py-2 flex items-center justify-center transition-colors"
+            style={{ color: 'var(--color-text-secondary)' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -164,15 +155,15 @@ function StatusTracker({ status }: { status: string }) {
               <div
                 className="h-8 w-8 rounded-full flex items-center justify-center transition-all"
                 style={{
-                  backgroundColor: done ? '#1E40AF' : '#F3F4F6',
-                  color: done ? 'white' : '#9CA3AF',
+                  backgroundColor: done ? 'var(--color-brand)' : 'var(--color-surface-2)',
+                  color: done ? 'white' : 'var(--color-text-tertiary)',
                 }}
               >
                 <Icon className="h-4 w-4" />
               </div>
               <span
                 className="text-[10px] font-semibold text-center leading-tight"
-                style={{ color: done ? '#1E40AF' : '#9CA3AF' }}
+                style={{ color: done ? 'var(--color-brand)' : 'var(--color-text-tertiary)' }}
               >
                 {step.label}
               </span>
@@ -180,7 +171,7 @@ function StatusTracker({ status }: { status: string }) {
             {i < steps.length - 1 && (
               <div
                 className="flex-1 h-0.5 mx-1 mb-4 transition-all"
-                style={{ backgroundColor: i < idx ? '#1E40AF' : '#E5E7EB' }}
+                style={{ backgroundColor: i < idx ? 'var(--color-brand)' : 'var(--color-border)' }}
               />
             )}
           </div>
@@ -205,7 +196,6 @@ export function MedicineOrderPage() {
   const [pickupClinicName, setPickupClinicName] = useState<string | null>(null)
   const [confirmedReadyTime, setConfirmedReadyTime] = useState<string>('')
 
-  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350)
     return () => clearTimeout(t)
@@ -297,12 +287,12 @@ export function MedicineOrderPage() {
         {/* Header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Medicines</h1>
-            <p className="text-sm text-gray-400 mt-0.5">OTC products from verified clinics and pharmacies</p>
+            <h1 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>Medicines</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>OTC products from verified clinics and pharmacies</p>
           </div>
           <div
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold"
-            style={{ backgroundColor: '#F0FDF4', color: '#15803D' }}
+            style={{ backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }}
           >
             <AlertCircle className="h-3.5 w-3.5" />
             No prescription medicines
@@ -311,16 +301,16 @@ export function MedicineOrderPage() {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: 'var(--color-text-tertiary)' }} />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search products…"
-            className="w-full rounded-xl border bg-white pl-10 pr-4 py-2.5 text-sm placeholder:text-gray-400 outline-none transition-all"
-            style={{ borderColor: '#e5e2dc' }}
-            onFocus={e => { e.currentTarget.style.borderColor = '#1E40AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,64,175,0.08)' }}
-            onBlur={e => { e.currentTarget.style.borderColor = '#e5e2dc'; e.currentTarget.style.boxShadow = 'none' }}
+            className="w-full rounded-xl bg-white pl-10 pr-4 py-2.5 text-sm outline-none transition-all"
+            style={{ border: '1px solid var(--color-border)' }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-brand-light)' }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
           />
         </div>
 
@@ -333,8 +323,8 @@ export function MedicineOrderPage() {
               className="shrink-0 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all"
               style={
                 category === cat.key
-                  ? { backgroundColor: '#1E40AF', color: 'white' }
-                  : { backgroundColor: 'white', color: '#6B7280', border: '1px solid #e5e2dc' }
+                  ? { backgroundColor: 'var(--color-brand)', color: 'white' }
+                  : { backgroundColor: 'var(--color-surface)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }
               }
             >
               {cat.label}
@@ -346,17 +336,17 @@ export function MedicineOrderPage() {
         {isLoading ? (
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-48 bg-white rounded-2xl animate-pulse border border-gray-100" />
+              <div key={i} className="card h-48 animate-pulse" />
             ))}
           </div>
         ) : products.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              <Package className="h-7 w-7 text-gray-400" />
+            <div className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+              <Package className="h-7 w-7" style={{ color: 'var(--color-text-tertiary)' }} />
             </div>
-            <p className="text-sm font-semibold text-gray-600">No products found</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-text-secondary)' }}>No products found</p>
             {debouncedSearch && (
-              <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>Try a different search term</p>
             )}
           </div>
         ) : (
@@ -381,7 +371,7 @@ export function MedicineOrderPage() {
           <button
             onClick={() => setDrawerOpen(true)}
             className="fixed bottom-6 right-6 z-30 flex items-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-[0.97]"
-            style={{ backgroundColor: '#1E40AF', boxShadow: '0 8px 24px rgba(30,64,175,0.35)' }}
+            style={{ backgroundColor: 'var(--color-brand)', boxShadow: '0 8px 24px rgba(30,64,175,0.35)' }}
           >
             <ShoppingCart className="h-4 w-4" />
             <span>{cartCount} item{cartCount !== 1 ? 's' : ''}</span>
@@ -403,7 +393,6 @@ export function MedicineOrderPage() {
           }}
         />
 
-        {/* Bottom spacer when cart is open */}
         {cartCount > 0 && <div className="h-20" />}
       </div>
     )
@@ -415,22 +404,25 @@ export function MedicineOrderPage() {
       <div className="space-y-5 animate-fade-in">
         <button
           onClick={() => setPageView('browse')}
-          className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+          className="flex items-center gap-1.5 text-sm font-semibold transition-colors"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-tertiary)')}
         >
           <ChevronLeft className="h-4 w-4" />
           Back to store
         </button>
 
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Checkout</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{cart.length} product type{cart.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>Checkout</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{cart.length} product type{cart.length !== 1 ? 's' : ''}</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmitCheckout)} className="space-y-4">
           {/* Order summary */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid #f1f0ec' }}>
-              <p className="text-[13px] font-bold text-gray-900">Order Summary</p>
+          <div className="card overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <p className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>Order Summary</p>
             </div>
             <div className="px-5 py-4 space-y-3">
               {cart.map(item => (
@@ -438,32 +430,32 @@ export function MedicineOrderPage() {
                   <div className="flex items-center gap-2.5">
                     <div
                       className="h-7 w-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                      style={{ backgroundColor: '#1E40AF' }}
+                      style={{ backgroundColor: 'var(--color-brand)' }}
                     >
                       {item.name[0]}
                     </div>
                     <div>
-                      <p className="text-[12px] font-semibold text-gray-900">{item.name}</p>
-                      <p className="text-[11px] text-gray-400">Qty: {item.quantity}</p>
+                      <p className="text-[12px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{item.name}</p>
+                      <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>Qty: {item.quantity}</p>
                     </div>
                   </div>
-                  <span className="text-[13px] font-bold text-gray-900">
+                  <span className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>
                     KES {(item.priceKes * item.quantity).toLocaleString()}
                   </span>
                 </div>
               ))}
-              <div className="pt-3 space-y-1.5" style={{ borderTop: '1px solid #f1f0ec' }}>
-                <div className="flex justify-between text-sm text-gray-500">
+              <div className="pt-3 space-y-1.5" style={{ borderTop: '1px solid var(--color-border)' }}>
+                <div className="flex justify-between text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                   <span>Subtotal</span>
                   <span>KES {cartSubtotal.toLocaleString()}</span>
                 </div>
                 {deliveryMethod === 'delivery' && (
-                  <div className="flex justify-between text-sm text-gray-500">
+                  <div className="flex justify-between text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     <span>Delivery fee</span>
                     <span>KES {DELIVERY_FEE.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-bold text-gray-900 pt-1" style={{ borderTop: '1px solid #f1f0ec' }}>
+                <div className="flex justify-between text-sm font-bold pt-1" style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
                   <span>Total</span>
                   <span>KES {totalWithDelivery.toLocaleString()}</span>
                 </div>
@@ -472,52 +464,50 @@ export function MedicineOrderPage() {
           </div>
 
           {/* Delivery method */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid #f1f0ec' }}>
-              <p className="text-[13px] font-bold text-gray-900">Delivery</p>
+          <div className="card overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <p className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>Delivery</p>
             </div>
             <div className="px-5 py-4 space-y-3">
-              {/* Pickup */}
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="radio" value="pickup" {...register('delivery_method')} className="accent-blue-700" />
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-xl bg-gray-100 flex items-center justify-center">
-                    <Package className="h-4 w-4 text-gray-500" />
+                  <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+                    <Package className="h-4 w-4" style={{ color: 'var(--color-text-secondary)' }} />
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold text-gray-900">Clinic Pickup</p>
-                    <p className="text-[11px] text-gray-400">Collect directly from the pharmacy</p>
+                    <p className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>Clinic Pickup</p>
+                    <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>Collect directly from the pharmacy</p>
                   </div>
                 </div>
               </label>
-              {/* Delivery */}
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="radio" value="delivery" {...register('delivery_method')} className="accent-blue-700" />
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-xl bg-gray-100 flex items-center justify-center">
-                    <Truck className="h-4 w-4 text-gray-500" />
+                  <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+                    <Truck className="h-4 w-4" style={{ color: 'var(--color-text-secondary)' }} />
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold text-gray-900">Home Delivery</p>
-                    <p className="text-[11px] text-gray-400">+KES 200 · 2–4 hours</p>
+                    <p className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>Home Delivery</p>
+                    <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>+KES 200 · 2–4 hours</p>
                   </div>
                 </div>
               </label>
 
               {deliveryMethod === 'delivery' && (
                 <div className="pt-1">
-                  <label className="block text-[11px] font-semibold text-gray-700 mb-1.5">Delivery Address</label>
+                  <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>Delivery Address</label>
                   <textarea
                     {...register('delivery_address')}
                     rows={2}
                     placeholder="Street, building, apartment number…"
-                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm resize-none outline-none transition-all"
-                    style={{ borderColor: errors.delivery_address ? '#EF4444' : '#e5e2dc' }}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#1E40AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,64,175,0.08)' }}
-                    onBlur={e => { e.currentTarget.style.borderColor = errors.delivery_address ? '#EF4444' : '#e5e2dc'; e.currentTarget.style.boxShadow = 'none' }}
+                    className="w-full rounded-xl px-3.5 py-2.5 text-sm resize-none outline-none transition-all"
+                    style={{ border: `1px solid ${errors.delivery_address ? 'var(--color-danger)' : 'var(--color-border)'}` }}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-brand-light)' }}
+                    onBlur={e => { e.currentTarget.style.borderColor = errors.delivery_address ? 'var(--color-danger)' : 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
                   />
                   {errors.delivery_address && (
-                    <p className="text-xs text-red-500 mt-1">{errors.delivery_address.message}</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{errors.delivery_address.message}</p>
                   )}
                 </div>
               )}
@@ -525,26 +515,24 @@ export function MedicineOrderPage() {
           </div>
 
           {/* Payment */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid #f1f0ec' }}>
-              <p className="text-[13px] font-bold text-gray-900">Payment</p>
+          <div className="card overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <p className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>Payment</p>
             </div>
             <div className="px-5 py-4 space-y-3">
-              {/* M-Pesa option */}
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="radio" value="mpesa" {...register('payment_method')} className="accent-blue-700" />
                 <div className="flex items-center gap-2.5 flex-1">
-                  <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F0FDF4' }}>
-                    <Smartphone className="h-4 w-4 text-green-600" />
+                  <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-success-light)' }}>
+                    <Smartphone className="h-4 w-4" style={{ color: 'var(--color-success)' }} />
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold text-gray-900">M-Pesa</p>
-                    <p className="text-[11px] text-gray-400">STK push to your phone</p>
+                    <p className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>M-Pesa</p>
+                    <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>STK push to your phone</p>
                   </div>
                 </div>
               </label>
 
-              {/* Cash option — only available for pickup */}
               <label className={`flex items-center gap-3 ${deliveryMethod === 'delivery' ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
                 <input
                   type="radio"
@@ -554,35 +542,34 @@ export function MedicineOrderPage() {
                   className="accent-blue-700"
                 />
                 <div className="flex items-center gap-2.5 flex-1">
-                  <div className="h-8 w-8 rounded-xl bg-gray-100 flex items-center justify-center">
-                    <Banknote className="h-4 w-4 text-gray-500" />
+                  <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+                    <Banknote className="h-4 w-4" style={{ color: 'var(--color-text-secondary)' }} />
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold text-gray-900">Cash on Pickup</p>
-                    <p className="text-[11px] text-gray-400">
+                    <p className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>Cash on Pickup</p>
+                    <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
                       {deliveryMethod === 'delivery' ? 'Not available for delivery' : 'Pay at the pharmacy counter'}
                     </p>
                   </div>
                 </div>
               </label>
 
-              {/* M-Pesa phone field — shown only when M-Pesa is selected */}
               {paymentMethod === 'mpesa' && (
                 <div className="pt-1">
-                  <label className="block text-[11px] font-semibold text-gray-700 mb-1.5">M-Pesa Phone Number</label>
+                  <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>M-Pesa Phone Number</label>
                   <input
                     type="tel"
                     {...register('mpesa_phone')}
                     placeholder="+254 7XX XXX XXX"
-                    className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-all"
-                    style={{ borderColor: errors.mpesa_phone ? '#EF4444' : '#e5e2dc' }}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#1E40AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,64,175,0.08)' }}
-                    onBlur={e => { e.currentTarget.style.borderColor = errors.mpesa_phone ? '#EF4444' : '#e5e2dc'; e.currentTarget.style.boxShadow = 'none' }}
+                    className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all"
+                    style={{ border: `1px solid ${errors.mpesa_phone ? 'var(--color-danger)' : 'var(--color-border)'}` }}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-brand-light)' }}
+                    onBlur={e => { e.currentTarget.style.borderColor = errors.mpesa_phone ? 'var(--color-danger)' : 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
                   />
                   {errors.mpesa_phone && (
-                    <p className="text-xs text-red-500 mt-1">{errors.mpesa_phone.message}</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{errors.mpesa_phone.message}</p>
                   )}
-                  <p className="text-[11px] text-gray-400 mt-1.5">
+                  <p className="text-[11px] mt-1.5" style={{ color: 'var(--color-text-tertiary)' }}>
                     You will receive an M-Pesa payment prompt after placing your order.
                   </p>
                 </div>
@@ -590,8 +577,8 @@ export function MedicineOrderPage() {
 
               {paymentMethod === 'cash' && (
                 <div
-                  className="rounded-xl p-3 text-[12px] text-amber-800"
-                  style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}
+                  className="rounded-xl p-3 text-[12px]"
+                  style={{ backgroundColor: 'var(--color-warning-light)', color: 'var(--color-warning)', border: '1px solid var(--color-warning-light)' }}
                 >
                   Bring exact cash of <strong>KES {totalWithDelivery.toLocaleString()}</strong> to the pharmacy counter when collecting your order.
                 </div>
@@ -604,13 +591,13 @@ export function MedicineOrderPage() {
             type="submit"
             disabled={isPlacing}
             className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
-            style={{ backgroundColor: '#1E40AF' }}
+            style={{ backgroundColor: 'var(--color-brand)' }}
           >
             {isPlacing ? 'Placing order…' : `Place Order — KES ${totalWithDelivery.toLocaleString()}`}
           </button>
 
-          <p className="text-[11px] text-center text-gray-400 pb-4">
-M-Pesa payment will be requested on your phone after confirmation
+          <p className="text-[11px] text-center pb-4" style={{ color: 'var(--color-text-tertiary)' }}>
+            M-Pesa payment will be requested on your phone after confirmation
           </p>
         </form>
       </div>
@@ -621,23 +608,23 @@ M-Pesa payment will be requested on your phone after confirmation
   return (
     <div className="space-y-5 animate-fade-in">
       {/* Success hero */}
-      <div className="bg-white rounded-2xl p-6 text-center border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      <div className="card p-6 text-center">
         <div
           className="h-16 w-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-          style={{ backgroundColor: '#EFF6FF' }}
+          style={{ backgroundColor: 'var(--color-brand-light)' }}
         >
-          <CheckCircle2 className="h-8 w-8" style={{ color: '#1E40AF' }} />
+          <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--color-brand)' }} />
         </div>
-        <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Order Placed</h1>
-        <p className="text-sm text-gray-400 mt-1">Your order has been received and is being processed.</p>
+        <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>Order Placed</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>Your order has been received and is being processed.</p>
 
         {confirmedOrder && (
           <div
             className="mt-4 rounded-xl px-4 py-3 inline-block"
-            style={{ backgroundColor: '#F8FAFF', border: '1px solid #DBEAFE' }}
+            style={{ backgroundColor: 'var(--color-brand-light)', border: '1px solid var(--color-border)' }}
           >
-            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Order Reference</p>
-            <p className="text-lg font-extrabold text-blue-900 tracking-wide mt-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-brand)' }}>Order Reference</p>
+            <p className="text-lg font-bold tracking-wide mt-0.5" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>
               {confirmedOrder.order_reference}
             </p>
           </div>
@@ -647,32 +634,32 @@ M-Pesa payment will be requested on your phone after confirmation
       {/* Estimated ready time + pickup info */}
       {confirmedOrder && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl p-4 border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="card p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-blue-600" />
-              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Ready by</p>
+              <Clock className="h-4 w-4" style={{ color: 'var(--color-brand)' }} />
+              <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-text-tertiary)' }}>Ready by</p>
             </div>
-            <p className="text-lg font-extrabold text-gray-900">{confirmedReadyTime}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">Estimated ~30 min</p>
+            <p className="text-lg font-bold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>{confirmedReadyTime}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>Estimated ~30 min</p>
           </div>
 
           {confirmedOrder.delivery_method === 'pickup' && pickupClinicName ? (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div className="card p-4">
               <div className="flex items-center gap-2 mb-2">
-                <MapPin className="h-4 w-4 text-blue-600" />
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Pickup at</p>
+                <MapPin className="h-4 w-4" style={{ color: 'var(--color-brand)' }} />
+                <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-text-tertiary)' }}>Pickup at</p>
               </div>
-              <p className="text-[13px] font-bold text-gray-900 leading-tight">{pickupClinicName}</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">Show order reference at counter</p>
+              <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--color-text-primary)' }}>{pickupClinicName}</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>Show order reference at counter</p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div className="card p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Truck className="h-4 w-4 text-blue-600" />
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Delivery</p>
+                <Truck className="h-4 w-4" style={{ color: 'var(--color-brand)' }} />
+                <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-text-tertiary)' }}>Delivery</p>
               </div>
-              <p className="text-[13px] font-bold text-gray-900">Home Delivery</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">2–4 hours to your address</p>
+              <p className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>Home Delivery</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>2–4 hours to your address</p>
             </div>
           )}
         </div>
@@ -680,31 +667,31 @@ M-Pesa payment will be requested on your phone after confirmation
 
       {/* Status tracker */}
       {confirmedOrder && (
-        <div className="bg-white rounded-2xl p-5 border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <p className="text-[13px] font-bold text-gray-900 mb-5">Order Status</p>
+        <div className="card p-5">
+          <p className="text-[13px] font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Order Status</p>
           <StatusTracker status={confirmedOrder.status} />
         </div>
       )}
 
       {/* Order details */}
       {confirmedOrder && confirmedOrder.items_detail.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div className="px-5 py-3.5" style={{ borderBottom: '1px solid #f1f0ec' }}>
-            <p className="text-[13px] font-bold text-gray-900">Items Ordered</p>
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <p className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>Items Ordered</p>
           </div>
           <div className="px-5 py-4 space-y-3">
             {confirmedOrder.items_detail.map((item, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div>
-                  <p className="text-[12px] font-semibold text-gray-900">{item.product_name}</p>
-                  <p className="text-[11px] text-gray-400">× {item.quantity}</p>
+                  <p className="text-[12px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{item.product_name}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>× {item.quantity}</p>
                 </div>
-                <span className="text-[13px] font-bold text-gray-900">
+                <span className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>
                   KES {item.total_kes.toLocaleString()}
                 </span>
               </div>
             ))}
-            <div className="pt-3 flex justify-between text-sm font-bold text-gray-900" style={{ borderTop: '1px solid #f1f0ec' }}>
+            <div className="pt-3 flex justify-between text-sm font-bold" style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
               <span>Total Paid</span>
               <span>KES {confirmedOrder.total_amount_kes.toLocaleString()}</span>
             </div>
@@ -717,13 +704,14 @@ M-Pesa payment will be requested on your phone after confirmation
         <button
           onClick={() => { setPageView('browse'); setConfirmedOrder(null) }}
           className="w-full rounded-xl py-3 text-sm font-bold text-white transition-all hover:opacity-90"
-          style={{ backgroundColor: '#1E40AF' }}
+          style={{ backgroundColor: 'var(--color-brand)' }}
         >
           Continue Shopping
         </button>
         <button
           onClick={() => navigate('/dashboard')}
-          className="w-full rounded-xl py-3 text-sm font-semibold text-gray-600 bg-white border border-gray-200 hover:border-gray-300 transition-all"
+          className="w-full rounded-xl py-3 text-sm font-semibold bg-white border border-gray-200 hover:border-gray-300 transition-all"
+          style={{ color: 'var(--color-text-secondary)' }}
         >
           Go to Dashboard
         </button>

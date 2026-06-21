@@ -1,18 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 /* ── Design tokens exposed as Tailwind utilities ── */
 @theme {
-  /* Surfaces */
-  --color-canvas:        #F7F8FA;
-  --color-surface:       #FFFFFF;
-  --color-surface-2:     #F0F2F5;
-  --color-surface-3:     #E8EAED;
+  /* Surfaces — warm cream palette */
+  --color-canvas:        #F5F0E8;
+  --color-surface:       #FDFAF5;
+  --color-surface-2:     #EDE8DF;
+  --color-surface-3:     #E0D9CE;
 
   /* Brand */
   --color-brand:         #1D4ED8;
   --color-brand-light:   #EFF6FF;
   --color-brand-dark:    #1E3A8A;
+
+  /* Accent — editorial gold */
+  --color-accent:        #C8A96E;
+  --color-accent-light:  #F9F3E8;
+
+  /* Dark — deep navy */
+  --color-dark:          #1A1A2E;
 
   /* Semantic */
   --color-success:       #059669;
@@ -25,36 +32,48 @@
   --color-info-light:    #F0F9FF;
 
   /* Text */
-  --color-ink:           #0D0F12;
-  --color-dim:           #4B5563;
-  --color-muted:         #9CA3AF;
+  --color-ink:           #1A1A2E;
+  --color-dim:           #4A4A5A;
+  --color-muted:         #8A8A9A;
 
-  /* Borders */
-  --color-border:        #E5E7EB;
-  --color-border-strong: #D1D5DB;
+  /* Borders — warm rule lines */
+  --color-border:        #D4C9B0;
+  --color-border-strong: #B8AFA0;
+  --color-rule:          #D4C9B0;
 
   /* Fonts */
-  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-body:    "Inter", system-ui, sans-serif;
+  --font-display: "Playfair Display", "Georgia", serif;
+  --font-body:    "DM Sans", system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", "Fira Code", monospace;
 }
 
 /* ── CSS custom properties (use in style={} via var()) ── */
 :root {
-  --color-canvas:          #F7F8FA;
-  --color-surface:         #FFFFFF;
-  --color-surface-2:       #F0F2F5;
-  --color-surface-3:       #E8EAED;
+  /* Surfaces */
+  --color-canvas:          #F5F0E8;
+  --color-surface:         #FDFAF5;
+  --color-surface-2:       #EDE8DF;
+  --color-surface-3:       #E0D9CE;
 
-  --color-text-primary:    #0D0F12;
-  --color-text-secondary:  #4B5563;
-  --color-text-tertiary:   #9CA3AF;
-  --color-text-inverse:    #FFFFFF;
+  /* Text */
+  --color-text-primary:    #1A1A2E;
+  --color-text-secondary:  #4A4A5A;
+  --color-text-tertiary:   #8A8A9A;
+  --color-text-inverse:    #FDFAF5;
 
+  /* Brand */
   --color-brand:           #1D4ED8;
   --color-brand-light:     #EFF6FF;
   --color-brand-dark:      #1E3A8A;
 
+  /* Accent — editorial gold */
+  --color-accent:          #C8A96E;
+  --color-accent-light:    #F9F3E8;
+
+  /* Dark — deep navy */
+  --color-dark:            #1A1A2E;
+
+  /* Semantic */
   --color-success:         #059669;
   --color-success-light:   #ECFDF5;
   --color-warning:         #D97706;
@@ -64,41 +83,56 @@
   --color-info:            #0284C7;
   --color-info-light:      #F0F9FF;
 
-  --color-border:          #E5E7EB;
-  --color-border-strong:   #D1D5DB;
+  /* Borders — warm rule lines */
+  --color-border:          #D4C9B0;
+  --color-border-strong:   #B8AFA0;
   --color-border-focus:    #1D4ED8;
+  --color-rule:            #D4C9B0;
 
-  /* Sidebar */
-  --sidebar-bg:            #0F172A;
-  --sidebar-surface:       #1E293B;
-  --sidebar-hover:         #1E293B;
+  /* Sidebar — dark navy base */
+  --sidebar-bg:            #1A1A2E;
+  --sidebar-surface:       #22223A;
+  --sidebar-hover:         #2A2A46;
   --sidebar-active:        #1D4ED8;
-  --sidebar-text:          #94A3B8;
-  --sidebar-text-active:   #FFFFFF;
-  --sidebar-border:        #1E293B;
+  --sidebar-text:          #8A8AA8;
+  --sidebar-text-active:   #FDFAF5;
+  --sidebar-border:        #2A2A46;
 
-  /* Radius */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
-  --radius-xl:   16px;
+  /* Radius — sharp, editorial (max 4px) */
+  --radius-sm:   2px;
+  --radius-md:   4px;
+  --radius-lg:   4px;
+  --radius-xl:   6px;
   --radius-full: 9999px;
 
-  /* Elevation */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-lg: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-xl: 0 10px 15px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.04);
+  /* Elevation — minimal */
+  --shadow-sm: 0 1px 2px rgba(26,26,46,0.06);
+  --shadow-md: 0 2px 4px rgba(26,26,46,0.08), 0 1px 2px rgba(26,26,46,0.04);
+  --shadow-lg: 0 4px 8px rgba(26,26,46,0.08), 0 2px 4px rgba(26,26,46,0.04);
+  --shadow-xl: 0 8px 16px rgba(26,26,46,0.08), 0 4px 8px rgba(26,26,46,0.04);
+
+  /* Type scale */
+  --text-micro:   11px;
+  --text-caption: 12px;
+  --text-small:   13px;
+  --text-body:    15px;
+  --text-lead:    17px;
+  --text-title:   22px;
+  --text-section: clamp(28px, 4vw, 36px);
+  --text-display: clamp(36px, 6vw, 52px);
+  --text-hero:    clamp(52px, 10vw, 96px);
 }
 
 /* ── Base ── */
 @layer base {
   html {
-    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-family: "DM Sans", system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     color: var(--color-text-primary);
     background-color: var(--color-canvas);
+    font-size: 15px;
+    line-height: 1.6;
   }
 
   body {
@@ -110,11 +144,19 @@
   #root { min-height: 100vh; }
   * { box-sizing: border-box; }
 
+  /* Editorial heading defaults */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Playfair Display", "Georgia", serif;
+    line-height: 1.15;
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+
   ::-webkit-scrollbar       { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
     background: var(--color-border);
-    border-radius: var(--radius-full);
+    border-radius: 2px;
   }
   ::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
 }
@@ -199,12 +241,19 @@
   border-radius: var(--radius-sm);
 }
 
-/* ── Card primitive ── */
+/* ── Card primitive — editorial, sharp corners ── */
 .card {
   background:    var(--color-surface);
   border:        1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow:    var(--shadow-sm);
+}
+
+/* ── Rule line — editorial horizontal divider ── */
+.rule {
+  border: none;
+  border-top: 1px solid var(--color-rule);
+  margin: 0;
 }
 
 /* ── Reduced motion ── */

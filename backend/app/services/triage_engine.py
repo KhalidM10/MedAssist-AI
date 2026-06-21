@@ -150,6 +150,12 @@ MODERATE_COMBO_RULES: List[Tuple[List[str], List[str], str]] = [
         "Possible influenza / viral illness",
     ),
     (
+        ["fever", "high temperature", "febrile"],
+        ["confusion", "confused", "disoriented", "altered consciousness",
+         "not making sense", "delirious", "delirium"],
+        "Fever with altered mental status — possible meningitis or sepsis",
+    ),
+    (
         ["cough", "persistent cough", "coughing", "dry cough", "wet cough"],
         ["fever", "high temperature", "chills", "night sweats",
          "weight loss", "blood"],

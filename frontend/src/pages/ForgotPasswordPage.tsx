@@ -4,21 +4,16 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Activity, ArrowLeft, CheckCircle2, Mail, KeyRound, ShieldCheck,
-} from 'lucide-react'
-import { Button } from '../components/ui/Button'
+import { ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react'
 import { Input } from '../components/ui/Input'
 import { PasswordStrengthMeter } from '../components/auth/PasswordStrengthMeter'
 import { api } from '../lib/api'
 
 type Step = 'email' | 'sent' | 'reset' | 'success'
 
-// Step 1
 const emailSchema = z.object({ email: z.string().email('Enter a valid email') })
 type EmailForm = z.infer<typeof emailSchema>
 
-// Step 3
 const resetSchema = z
   .object({
     token: z.string().min(1, 'Reset token is required'),
@@ -35,6 +30,23 @@ const resetSchema = z
     path: ['confirm_password'],
   })
 type ResetForm = z.infer<typeof resetSchema>
+
+const BODY = '"DM Sans", system-ui, sans-serif'
+const DISPLAY = '"Playfair Display", Georgia, serif'
+const C = {
+  canvas:   '#F5F0E8',
+  surface:  '#FDFAF5',
+  dark:     '#1A1A2E',
+  brand:    '#1D4ED8',
+  accent:   '#C8A96E',
+  rule:     '#D4C9B0',
+  text:     '#1A1A2E',
+  body:     '#4A4A5A',
+  muted:    '#8A8A9A',
+  success:  '#059669',
+  warning:  '#D97706',
+  danger:   '#DC2626',
+}
 
 export function ForgotPasswordPage() {
   const [step, setStep] = useState<Step>('email')
@@ -58,20 +70,25 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <Link to="/" className="flex items-center justify-center gap-3 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 shadow-sm">
-            <Activity className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <p className="font-bold text-gray-900 text-lg leading-none">MedAssist AI</p>
-            <p className="text-xs text-gray-500">Kenya Health Platform</p>
-          </div>
-        </Link>
+    <div style={{ minHeight: '100vh', background: C.canvas, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 16px', fontFamily: BODY }}>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+      {/* Logo */}
+      <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40, textDecoration: 'none' }}>
+        <div style={{ width: 30, height: 30, background: C.dark, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 22 22" fill="none">
+            <path d="M1 11L6 11L8 7L11 16L13 6L15 11L21 11" stroke={C.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 500, color: C.text, fontFamily: BODY, lineHeight: 1 }}>MedAssist AI</p>
+          <p style={{ fontSize: 11, color: C.muted, fontFamily: BODY, marginTop: 2 }}>Kenya Health Platform</p>
+        </div>
+      </Link>
+
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ background: C.surface, border: `1px solid ${C.rule}`, borderRadius: 4, padding: '40px 36px' }}>
           <AnimatePresence mode="wait">
+
             {/* Step 1: Email */}
             {step === 'email' && (
               <motion.div
@@ -80,18 +97,22 @@ export function ForgotPasswordPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 0 }}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 mb-5">
-                  <Mail className="h-6 w-6 text-blue-700" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                  <div style={{ width: 20, height: 1, background: C.accent }} />
+                  <span style={{ fontSize: 10, color: C.accent, fontFamily: BODY, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Password Reset</span>
                 </div>
-                <h1 className="text-xl font-bold text-gray-900 mb-1">Forgot your password?</h1>
-                <p className="text-sm text-gray-500 mb-6">
-                  Enter your email and we&apos;ll send you a reset link.
+                <h1 style={{ fontSize: 26, fontWeight: 700, fontFamily: DISPLAY, color: C.text, marginBottom: 8, letterSpacing: '-0.01em', lineHeight: 1.15 }}>
+                  Forgot your password?
+                </h1>
+                <p style={{ fontSize: 14, color: C.muted, marginBottom: 28, fontFamily: BODY, fontWeight: 300, lineHeight: 1.6 }}>
+                  Enter your email and we'll send you a reset link.
                 </p>
 
                 <form
                   onSubmit={emailForm.handleSubmit(onRequestReset)}
-                  className="flex flex-col gap-4"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
                 >
                   <Input
                     label="Email address"
@@ -101,26 +122,33 @@ export function ForgotPasswordPage() {
                     {...emailForm.register('email')}
                   />
                   {emailForm.formState.errors.root && (
-                    <p className="text-sm text-red-500">
+                    <p style={{ fontSize: 12, color: C.danger, fontFamily: BODY }}>
                       {emailForm.formState.errors.root.message}
                     </p>
                   )}
-                  <Button
+                  <button
                     type="submit"
-                    loading={emailForm.formState.isSubmitting}
-                    size="lg"
-                    className="w-full bg-blue-700 hover:bg-blue-800"
+                    disabled={emailForm.formState.isSubmitting}
+                    style={{
+                      width: '100%', padding: '12px', borderRadius: 4, border: 'none',
+                      background: emailForm.formState.isSubmitting ? C.muted : C.brand,
+                      color: 'white', fontSize: 14, fontWeight: 500, fontFamily: BODY,
+                      cursor: emailForm.formState.isSubmitting ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
                   >
-                    Send reset link
-                  </Button>
+                    {emailForm.formState.isSubmitting ? (
+                      <>
+                        <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />
+                        Sending…
+                      </>
+                    ) : 'Send reset link'}
+                  </button>
                 </form>
 
-                <div className="mt-4 text-center">
-                  <Link
-                    to="/login"
-                    className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" /> Back to sign in
+                <div style={{ marginTop: 20, textAlign: 'center' }}>
+                  <Link to="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.muted, textDecoration: 'none', fontFamily: BODY }}>
+                    <ArrowLeft size={13} /> Back to sign in
                   </Link>
                 </div>
               </motion.div>
@@ -135,36 +163,37 @@ export function ForgotPasswordPage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 mb-5">
-                  <Mail className="h-6 w-6 text-green-600" />
+                <div style={{ width: 40, height: 40, borderRadius: 4, background: `${C.success}12`, border: `1px solid ${C.success}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.success} strokeWidth="2" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                 </div>
-                <h1 className="text-xl font-bold text-gray-900 mb-1">Check your inbox</h1>
-                <p className="text-sm text-gray-500 mb-2">
-                  We sent a reset link to
-                </p>
-                <p className="text-sm font-semibold text-gray-800 mb-6 break-all">{email}</p>
+                <h1 style={{ fontSize: 26, fontWeight: 700, fontFamily: DISPLAY, color: C.text, marginBottom: 8, letterSpacing: '-0.01em' }}>Check your inbox</h1>
+                <p style={{ fontSize: 14, color: C.muted, marginBottom: 4, fontFamily: BODY, fontWeight: 300 }}>We sent a reset link to</p>
+                <p style={{ fontSize: 14, fontWeight: 500, color: C.text, marginBottom: 24, fontFamily: BODY, wordBreak: 'break-all' }}>{email}</p>
 
-                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 mb-6">
-                  <p className="text-xs text-amber-700">
-                    Didn&apos;t receive it? Check your spam folder or wait a minute and try again.
-                    The link expires in <strong>1 hour</strong>.
+                <div style={{
+                  background: '#FFFBEB', border: '1px solid #FDE68A',
+                  borderRadius: 4, padding: '12px 14px', marginBottom: 24,
+                }}>
+                  <p style={{ fontSize: 12, color: C.warning, fontFamily: BODY, lineHeight: 1.6 }}>
+                    Didn't receive it? Check your spam folder or wait a minute. The link expires in <strong>1 hour</strong>.
                   </p>
                 </div>
 
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
-                  size="lg"
-                  className="w-full mb-3"
                   onClick={() => setStep('reset')}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: 4, marginBottom: 10,
+                    border: `1px solid ${C.rule}`, background: 'transparent',
+                    color: C.body, fontSize: 14, fontFamily: BODY, cursor: 'pointer',
+                  }}
                 >
                   I have my reset code
-                </Button>
-
+                </button>
                 <button
                   type="button"
                   onClick={() => setStep('email')}
-                  className="w-full text-sm text-gray-500 hover:text-gray-700 py-2"
+                  style={{ width: '100%', fontSize: 13, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', padding: '8px', fontFamily: BODY }}
                 >
                   Try a different email
                 </button>
@@ -180,17 +209,17 @@ export function ForgotPasswordPage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 mb-5">
-                  <KeyRound className="h-6 w-6 text-blue-700" />
+                <div style={{ width: 40, height: 40, borderRadius: 4, background: `${C.brand}10`, border: `1px solid ${C.brand}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+                  <ShieldCheck size={18} style={{ color: C.brand }} />
                 </div>
-                <h1 className="text-xl font-bold text-gray-900 mb-1">Set new password</h1>
-                <p className="text-sm text-gray-500 mb-6">
+                <h1 style={{ fontSize: 26, fontWeight: 700, fontFamily: DISPLAY, color: C.text, marginBottom: 8, letterSpacing: '-0.01em' }}>Set new password</h1>
+                <p style={{ fontSize: 14, color: C.muted, marginBottom: 28, fontFamily: BODY, fontWeight: 300 }}>
                   Enter the token from your email and your new password.
                 </p>
 
                 <form
                   onSubmit={resetForm.handleSubmit(onResetPassword)}
-                  className="flex flex-col gap-4"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
                 >
                   <Input
                     label="Reset token"
@@ -216,27 +245,39 @@ export function ForgotPasswordPage() {
                     {...resetForm.register('confirm_password')}
                   />
                   {resetForm.formState.errors.root && (
-                    <p className="text-sm text-red-500">
+                    <p style={{ fontSize: 12, color: C.danger, fontFamily: BODY }}>
                       {resetForm.formState.errors.root.message}
                     </p>
                   )}
-                  <Button
+                  <button
                     type="submit"
-                    loading={resetForm.formState.isSubmitting}
-                    size="lg"
-                    className="w-full bg-blue-700 hover:bg-blue-800"
+                    disabled={resetForm.formState.isSubmitting}
+                    style={{
+                      width: '100%', padding: '12px', borderRadius: 4, border: 'none',
+                      background: resetForm.formState.isSubmitting ? C.muted : C.brand,
+                      color: 'white', fontSize: 14, fontWeight: 500, fontFamily: BODY,
+                      cursor: resetForm.formState.isSubmitting ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
                   >
-                    <ShieldCheck className="h-4 w-4 mr-2" /> Reset password
-                  </Button>
+                    {resetForm.formState.isSubmitting ? (
+                      <>
+                        <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />
+                        Resetting…
+                      </>
+                    ) : (
+                      <><ShieldCheck size={14} /> Reset password</>
+                    )}
+                  </button>
                 </form>
 
-                <div className="mt-4 text-center">
+                <div style={{ marginTop: 20, textAlign: 'center' }}>
                   <button
                     type="button"
                     onClick={() => setStep('sent')}
-                    className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', fontFamily: BODY }}
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" /> Back
+                    <ArrowLeft size={13} /> Back
                   </button>
                 </div>
               </motion.div>
@@ -246,28 +287,34 @@ export function ForgotPasswordPage() {
             {step === 'success' && (
               <motion.div
                 key="success"
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className="text-center"
+                style={{ textAlign: 'center' }}
               >
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mx-auto mb-5">
-                  <CheckCircle2 className="h-8 w-8 text-green-600" />
+                <div style={{ width: 52, height: 52, borderRadius: 4, background: `${C.success}10`, border: `1px solid ${C.success}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                  <CheckCircle2 size={24} style={{ color: C.success }} />
                 </div>
-                <h1 className="text-xl font-bold text-gray-900 mb-2">Password updated!</h1>
-                <p className="text-sm text-gray-500 mb-8">
+                <h1 style={{ fontSize: 26, fontWeight: 700, fontFamily: DISPLAY, color: C.text, marginBottom: 8, letterSpacing: '-0.01em' }}>Password updated.</h1>
+                <p style={{ fontSize: 14, color: C.muted, marginBottom: 32, fontFamily: BODY, fontWeight: 300, lineHeight: 1.6 }}>
                   Your password has been changed. You can now sign in with your new credentials.
                 </p>
-                <Link to="/login">
-                  <Button size="lg" className="w-full bg-blue-700 hover:bg-blue-800">
-                    Sign in now
-                  </Button>
+                <Link to="/login" style={{
+                  display: 'block', textAlign: 'center', padding: '12px', borderRadius: 4,
+                  background: C.brand, color: 'white', textDecoration: 'none',
+                  fontSize: 14, fontWeight: 500, fontFamily: BODY,
+                }}>
+                  Sign in now
                 </Link>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }

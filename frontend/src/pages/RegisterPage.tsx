@@ -4,12 +4,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Activity, ArrowLeft, ArrowRight, Check } from 'lucide-react'
-import { Button } from '../components/ui/Button'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { Input } from '../components/ui/Input'
 import { PasswordStrengthMeter } from '../components/auth/PasswordStrengthMeter'
 import { useAuthStore } from '../store/auth'
-import { cn } from '../lib/utils'
 
 const KENYAN_COUNTIES = [
   'Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 'Embu', 'Garissa',
@@ -51,9 +49,9 @@ const schema = z
 type FormValues = z.infer<typeof schema>
 
 const STEPS = [
-  { label: 'Account', description: 'Name, email & password' },
-  { label: 'Location', description: 'County & demographics' },
-  { label: 'Health', description: 'Medical profile' },
+  { num: '01', label: 'Account', description: 'Name, email & password' },
+  { num: '02', label: 'Location', description: 'County & demographics' },
+  { num: '03', label: 'Health', description: 'Medical profile' },
 ]
 
 const STEP_FIELDS: (keyof FormValues)[][] = [
@@ -61,6 +59,37 @@ const STEP_FIELDS: (keyof FormValues)[][] = [
   ['county', 'gender', 'date_of_birth'],
   ['blood_type', 'allergies', 'emergency_contact_name', 'emergency_contact_phone'],
 ]
+
+const BODY = '"DM Sans", system-ui, sans-serif'
+const DISPLAY = '"Playfair Display", Georgia, serif'
+const C = {
+  canvas:   '#F5F0E8',
+  surface:  '#FDFAF5',
+  dark:     '#1A1A2E',
+  brand:    '#1D4ED8',
+  accent:   '#C8A96E',
+  rule:     '#D4C9B0',
+  text:     '#1A1A2E',
+  body:     '#4A4A5A',
+  muted:    '#8A8A9A',
+  danger:   '#DC2626',
+  dangerBg: '#FEF2F2',
+}
+
+const selectStyle: React.CSSProperties = {
+  height: 40, width: '100%', borderRadius: 4,
+  border: `1px solid ${C.rule}`, backgroundColor: C.surface,
+  padding: '0 12px', fontSize: 14, color: C.text, fontFamily: BODY,
+  outline: 'none', appearance: 'none',
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8A9A' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 12, fontWeight: 500, textTransform: 'uppercase',
+  letterSpacing: '0.08em', color: C.muted, fontFamily: BODY,
+  display: 'block', marginBottom: 6,
+}
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -101,77 +130,84 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        {/* Logo */}
-        <Link to="/" className="flex items-center justify-center gap-3 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 shadow-sm">
-            <Activity className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <p className="font-bold text-gray-900 text-lg leading-none">MedAssist AI</p>
-            <p className="text-xs text-gray-500">Kenya Health Platform</p>
-          </div>
-        </Link>
+    <div style={{ minHeight: '100vh', background: C.canvas, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 16px', fontFamily: BODY }}>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Progress bar */}
-          <div className="px-8 pt-8 pb-6 border-b border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              {STEPS.map((s, i) => (
-                <div key={s.label} className="flex items-center gap-2">
-                  <div
-                    className={cn(
-                      'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all',
-                      i < step
-                        ? 'bg-blue-700 text-white'
-                        : i === step
-                          ? 'bg-blue-700 text-white ring-4 ring-blue-100'
-                          : 'bg-gray-100 text-gray-400',
-                    )}
-                  >
-                    {i < step ? <Check className="h-4 w-4" /> : i + 1}
+      {/* Logo */}
+      <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36, textDecoration: 'none' }}>
+        <div style={{ width: 30, height: 30, background: C.dark, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 22 22" fill="none">
+            <path d="M1 11L6 11L8 7L11 16L13 6L15 11L21 11" stroke={C.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 500, color: C.text, fontFamily: BODY, lineHeight: 1 }}>MedAssist AI</p>
+          <p style={{ fontSize: 11, color: C.muted, fontFamily: BODY, marginTop: 2 }}>Kenya Health Platform</p>
+        </div>
+      </Link>
+
+      <div style={{ width: '100%', maxWidth: 480 }}>
+
+        {/* Step progress — editorial numbered style */}
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 16 }}>
+            {STEPS.map((s, i) => (
+              <div key={s.num} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: i < step ? 'none' : i === step ? `1.5px solid ${C.brand}` : `1px solid ${C.rule}`,
+                    background: i < step ? C.brand : i === step ? `${C.brand}0A` : 'transparent',
+                    transition: 'all 0.2s',
+                  }}>
+                    {i < step
+                      ? <Check size={13} color="white" />
+                      : <span style={{ fontSize: 12, fontWeight: 500, color: i === step ? C.brand : C.muted, fontFamily: BODY }}>{i + 1}</span>
+                    }
                   </div>
                   <div className="hidden sm:block">
-                    <p className={cn('text-xs font-semibold', i <= step ? 'text-gray-900' : 'text-gray-400')}>
-                      {s.label}
-                    </p>
-                    <p className="text-xs text-gray-400">{s.description}</p>
+                    <p style={{ fontSize: 12, fontWeight: i <= step ? 500 : 400, color: i <= step ? C.text : C.muted, fontFamily: BODY, lineHeight: 1.2 }}>{s.label}</p>
                   </div>
-                  {i < STEPS.length - 1 && (
-                    <div
-                      className={cn(
-                        'hidden sm:block flex-1 h-px w-12 mx-2 transition-all',
-                        i < step ? 'bg-blue-700' : 'bg-gray-200',
-                      )}
-                    />
-                  )}
                 </div>
-              ))}
-            </div>
-            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-blue-700 rounded-full"
-                animate={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
+                {i < STEPS.length - 1 && (
+                  <div style={{ flex: 1, height: 1, background: i < step ? C.brand : C.rule, margin: '0 12px', transition: 'background 0.3s' }} />
+                )}
+              </div>
+            ))}
           </div>
 
+          {/* Progress bar */}
+          <div style={{ height: 2, background: C.rule, borderRadius: 1, overflow: 'hidden' }}>
+            <motion.div
+              style={{ height: '100%', background: C.brand, borderRadius: 1 }}
+              animate={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+        </div>
+
+        {/* Card */}
+        <div style={{
+          background: C.surface, border: `1px solid ${C.rule}`, borderRadius: 4, overflow: 'hidden',
+        }}>
           {/* Form area */}
           <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="px-8 py-6 min-h-[360px]">
+            <div style={{ padding: '36px 36px 28px', minHeight: 380 }}>
               <AnimatePresence mode="wait">
+
+                {/* Step 1: Account */}
                 {step === 0 && (
                   <motion.div
                     key="step0"
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 0, x: 16 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    exit={{ opacity: 0, x: -16 }}
                     transition={{ duration: 0.2 }}
-                    className="flex flex-col gap-4"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
                   >
-                    <h2 className="text-lg font-semibold text-gray-900">Create your account</h2>
+                    <div style={{ marginBottom: 8 }}>
+                      <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: DISPLAY, color: C.text, marginBottom: 4, letterSpacing: '-0.01em' }}>Create your account</h2>
+                      <p style={{ fontSize: 13, color: C.muted, fontFamily: BODY, fontWeight: 300 }}>Your credentials for signing in</p>
+                    </div>
                     <Input
                       label="Full name"
                       placeholder="Jane Wanjiku"
@@ -213,37 +249,32 @@ export function RegisterPage() {
                   </motion.div>
                 )}
 
+                {/* Step 2: Location */}
                 {step === 1 && (
                   <motion.div
                     key="step1"
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 0, x: 16 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    exit={{ opacity: 0, x: -16 }}
                     transition={{ duration: 0.2 }}
-                    className="flex flex-col gap-4"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
                   >
-                    <h2 className="text-lg font-semibold text-gray-900">Your location</h2>
-                    <p className="text-sm text-gray-500 -mt-2">
-                      Helps us find nearby clinics and services.
-                    </p>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium text-gray-700">County</label>
-                      <select
-                        className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        {...register('county')}
-                      >
+                    <div style={{ marginBottom: 8 }}>
+                      <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: DISPLAY, color: C.text, marginBottom: 4, letterSpacing: '-0.01em' }}>Your location</h2>
+                      <p style={{ fontSize: 13, color: C.muted, fontFamily: BODY, fontWeight: 300 }}>Helps us find nearby clinics and services</p>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>County</label>
+                      <select style={selectStyle} {...register('county')}>
                         <option value="">Select county (optional)</option>
                         {KENYAN_COUNTIES.map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium text-gray-700">Gender <span className="text-gray-400 font-normal">(optional)</span></label>
-                      <select
-                        className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        {...register('gender')}
-                      >
+                    <div>
+                      <label style={labelStyle}>Gender <span style={{ fontWeight: 300, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
+                      <select style={selectStyle} {...register('gender')}>
                         <option value="">Prefer not to say</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
@@ -259,35 +290,38 @@ export function RegisterPage() {
                   </motion.div>
                 )}
 
+                {/* Step 3: Health */}
                 {step === 2 && (
                   <motion.div
                     key="step2"
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 0, x: 16 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    exit={{ opacity: 0, x: -16 }}
                     transition={{ duration: 0.2 }}
-                    className="flex flex-col gap-4"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
                   >
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Health profile</h2>
-                      <p className="text-sm text-gray-500">All fields optional — helps your doctor.</p>
+                    <div style={{ marginBottom: 8 }}>
+                      <h2 style={{ fontSize: 22, fontWeight: 700, fontFamily: DISPLAY, color: C.text, marginBottom: 4, letterSpacing: '-0.01em' }}>Health profile</h2>
+                      <p style={{ fontSize: 13, color: C.muted, fontFamily: BODY, fontWeight: 300 }}>All fields optional — helps your doctor</p>
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium text-gray-700">Blood type</label>
-                      <select
-                        className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        {...register('blood_type')}
-                      >
+                    <div>
+                      <label style={labelStyle}>Blood type</label>
+                      <select style={selectStyle} {...register('blood_type')}>
                         <option value="">Unknown</option>
                         {BLOOD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium text-gray-700">Known allergies</label>
+                    <div>
+                      <label style={labelStyle}>Known allergies</label>
                       <textarea
                         rows={2}
                         placeholder="e.g. Penicillin, peanuts"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        style={{
+                          width: '100%', borderRadius: 4, border: `1px solid ${C.rule}`,
+                          background: C.surface, padding: '8px 12px', fontSize: 14,
+                          color: C.text, fontFamily: BODY, resize: 'none', outline: 'none',
+                          lineHeight: 1.5,
+                        }}
                         {...register('allergies')}
                       />
                     </div>
@@ -308,54 +342,89 @@ export function RegisterPage() {
             </div>
 
             {serverError && (
-              <div className="mx-8 mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
+              <div style={{
+                margin: '0 36px 20px', borderRadius: 4,
+                background: C.dangerBg, border: `1px solid ${C.danger}30`,
+                padding: '10px 12px', fontSize: 13, color: C.danger, fontFamily: BODY,
+              }}>
                 {serverError}
               </div>
             )}
 
             {/* Navigation */}
-            <div className="px-8 pb-8 flex items-center justify-between gap-3">
+            <div style={{
+              padding: '20px 36px 32px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              borderTop: `1px solid ${C.rule}`,
+            }}>
               {step > 0 ? (
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={() => setStep((s) => s - 1)}
-                  className="flex items-center gap-2"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: 'none', border: `1px solid ${C.rule}`, borderRadius: 4,
+                    padding: '10px 18px', fontSize: 13, fontWeight: 400,
+                    color: C.body, fontFamily: BODY, cursor: 'pointer',
+                  }}
                 >
-                  <ArrowLeft className="h-4 w-4" /> Back
-                </Button>
+                  <ArrowLeft size={14} /> Back
+                </button>
               ) : (
                 <div />
               )}
 
               {step < STEPS.length - 1 ? (
-                <Button
+                <button
                   type="button"
                   onClick={nextStep}
-                  className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 focus-visible:ring-blue-500"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: C.brand, border: 'none', borderRadius: 4,
+                    padding: '10px 22px', fontSize: 13, fontWeight: 500,
+                    color: 'white', fontFamily: BODY, cursor: 'pointer',
+                  }}
                 >
-                  Continue <ArrowRight className="h-4 w-4" />
-                </Button>
+                  Continue <ArrowRight size={14} />
+                </button>
               ) : (
-                <Button
+                <button
                   type="submit"
-                  loading={isSubmitting}
-                  className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 focus-visible:ring-blue-500"
+                  disabled={isSubmitting}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: isSubmitting ? C.muted : C.brand, border: 'none', borderRadius: 4,
+                    padding: '10px 22px', fontSize: 13, fontWeight: 500,
+                    color: 'white', fontFamily: BODY, cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    transition: 'opacity 0.2s',
+                  }}
                 >
-                  <Check className="h-4 w-4" /> Create account
-                </Button>
+                  {isSubmitting ? (
+                    <>
+                      <span style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />
+                      Creating…
+                    </>
+                  ) : (
+                    <><Check size={14} /> Create account</>
+                  )}
+                </button>
               )}
             </div>
           </form>
         </div>
 
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: C.muted, fontFamily: BODY }}>
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">
+          <Link to="/login" style={{ color: C.brand, textDecoration: 'none', fontWeight: 500 }}>
             Sign in
           </Link>
         </p>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        select option { font-family: ${BODY}; }
+      `}</style>
     </div>
   )
 }

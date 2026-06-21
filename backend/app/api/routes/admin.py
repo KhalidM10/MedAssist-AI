@@ -19,7 +19,7 @@ from app.models.user import User, UserRole
 
 router = APIRouter()
 
-MRR_BY_PLAN = {"basic": 0, "pro": 4_999, "enterprise": 14_999}
+MRR_BY_PLAN = {"basic": 3_500, "pro": 8_500, "enterprise": 18_000}
 VALID_ROLES = (
     "super_admin", "clinic_admin", "clinic_doctor",
     "clinic_receptionist", "clinic_pharmacist", "patient",
@@ -671,12 +671,34 @@ def delete_user(
     current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
+    import secrets as _secrets
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == UserRole.SUPER_ADMIN:
         raise HTTPException(status_code=403, detail="Cannot delete a super admin account")
-    db.delete(user)
+
+    # GDPR anonymisation — wipe PII while preserving FK integrity
+    token = _secrets.token_hex(8)
+    user.full_name = "Deleted User"
+    user.email = f"deleted_{token}@deleted.invalid"
+    user.phone = f"+000{token[:9]}"
+    user.password_hash = _secrets.token_hex(32)
+    user.avatar_url = None
+    user.county = None
+    user.date_of_birth = None
+    user.gender = None
+    user.blood_type = None
+    user.allergies = None
+    user.emergency_contact = None
+    user.two_factor_enabled = False
+    user.two_factor_secret = None
+    user.password_reset_token = None
+    user.email_verify_token = None
+    user.is_active = False
+
+    # Force-logout all sessions
+    db.query(UserSession).filter(UserSession.user_id == user_id).update({"is_active": False})
     db.commit()
 
 

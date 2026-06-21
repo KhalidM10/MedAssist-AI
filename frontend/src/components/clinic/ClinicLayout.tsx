@@ -62,8 +62,8 @@ const SECTIONS: NavSection[] = [
 
 const PLAN_BADGE: Record<string, { label: string; color: string; bg: string }> = {
   basic:      { label: 'Basic',      color: 'var(--sidebar-text)',   bg: 'var(--sidebar-surface)' },
-  pro:        { label: 'Pro',        color: '#4ade80',               bg: 'rgba(74,222,128,0.12)' },
-  enterprise: { label: 'Enterprise', color: '#c4b5fd',               bg: 'rgba(196,181,253,0.12)' },
+  pro:        { label: 'Pro',        color: '#C8A96E',               bg: 'rgba(200,169,110,0.12)' },
+  enterprise: { label: 'Enterprise', color: '#C8A96E',               bg: 'rgba(200,169,110,0.08)' },
 }
 
 /* ── Sub-components ── */
@@ -135,13 +135,13 @@ export function ClinicLayout() {
         >
           {/* ECG icon */}
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-            style={{ background: 'rgba(29,78,216,0.2)', border: '1px solid rgba(29,78,216,0.3)' }}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded"
+            style={{ background: 'rgba(200,169,110,0.12)', border: '1px solid rgba(200,169,110,0.25)' }}
           >
             <svg width="16" height="16" viewBox="0 0 22 22" fill="none" aria-hidden="true">
               <path
                 d="M1 11 L6 11 L8 7 L11 16 L13 6 L15 11 L21 11"
-                stroke="#93C5FD"
+                stroke="#C8A96E"
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -204,7 +204,7 @@ export function ClinicLayout() {
                 {section.label && !collapsed && (
                   <p
                     className="px-5 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.1em]"
-                    style={{ color: '#475569', fontFamily: 'var(--font-body)' }}
+                    style={{ color: 'var(--sidebar-text)', opacity: 0.5, fontFamily: 'var(--font-body)' }}
                   >
                     {section.label}
                   </p>

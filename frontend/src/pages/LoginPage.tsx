@@ -1,15 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Activity, Building2, Eye, EyeOff, ShieldCheck, User } from 'lucide-react'
-import { Button } from '../components/ui/Button'
+import { Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { Input } from '../components/ui/Input'
 import { useAuthStore } from '../store/auth'
 import { CLINIC_ROLES } from '../types'
-import { cn } from '../lib/utils'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -19,14 +17,32 @@ const schema = z.object({
 })
 type FormValues = z.infer<typeof schema>
 
-const STATS = [
-  { value: '500+', label: 'Clinics' },
-  { value: '50K+', label: 'Patients' },
-  { value: '99.9%', label: 'Uptime' },
+const BODY = '"DM Sans", system-ui, sans-serif'
+const DISPLAY = '"Playfair Display", Georgia, serif'
+const C = {
+  canvas:   '#F5F0E8',
+  surface:  '#FDFAF5',
+  dark:     '#1A1A2E',
+  dark2:    '#22223A',
+  brand:    '#1D4ED8',
+  accent:   '#C8A96E',
+  rule:     '#D4C9B0',
+  text:     '#1A1A2E',
+  body:     '#4A4A5A',
+  muted:    '#8A8A9A',
+  danger:   '#DC2626',
+  dangerBg: '#FEF2F2',
+}
+
+const PANEL_STATS = [
+  { value: '2,400+', label: 'Triage sessions completed' },
+  { value: '18', label: 'Clinics onboarded in Nairobi' },
+  { value: '4.8/5', label: 'Patient satisfaction rating' },
 ]
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login } = useAuthStore()
   const [mode, setMode] = useState<'patient' | 'clinic'>('patient')
   const [serverError, setServerError] = useState('')
@@ -44,7 +60,12 @@ export function LoginPage() {
     try {
       await login(values.email, values.password, values.totp_code, values.backup_code)
       const user = useAuthStore.getState().user
-      if (user && CLINIC_ROLES.includes(user.role)) {
+      const next = searchParams.get('next')
+      if (next && next.startsWith('/') && !next.startsWith('//')) {
+        navigate(next, { replace: true })
+      } else if (user?.role === 'super_admin') {
+        navigate('/admin', { replace: true })
+      } else if (user && CLINIC_ROLES.includes(user.role)) {
         navigate('/clinic-dashboard', { replace: true })
       } else {
         navigate('/dashboard', { replace: true })
@@ -59,37 +80,44 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left: form */}
-      <div className="flex flex-1 flex-col justify-center px-6 py-12 lg:px-12 xl:px-16 bg-white">
-        <div className="w-full max-w-sm mx-auto">
-          <Link to="/" className="flex items-center gap-3 mb-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 shadow-sm">
-              <Activity className="h-5 w-5 text-white" />
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: BODY }}>
+
+      {/* ── Left: form panel ── */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        padding: '48px 40px', background: C.canvas, minHeight: '100vh',
+        maxWidth: 520,
+      }}>
+        <div style={{ width: '100%', maxWidth: 380, margin: '0 auto' }}>
+
+          {/* Logo */}
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48, textDecoration: 'none' }}>
+            <div style={{ width: 32, height: 32, background: C.dark, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+                <path d="M1 11L6 11L8 7L11 16L13 6L15 11L21 11" stroke={C.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </div>
             <div>
-              <p className="font-bold text-gray-900 text-lg leading-none">MedAssist AI</p>
-              <p className="text-xs text-gray-500">Kenya Health Platform</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: C.text, fontFamily: BODY, lineHeight: 1 }}>MedAssist AI</p>
+              <p style={{ fontSize: 11, color: C.muted, fontFamily: BODY, marginTop: 2 }}>Kenya Health Platform</p>
             </div>
           </Link>
 
-          {/* Patient / Clinic toggle */}
-          <div className="flex rounded-xl bg-gray-100 p-1 mb-8">
+          {/* Mode toggle — editorial tab style */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 36, borderBottom: `1px solid ${C.rule}` }}>
             {(['patient', 'clinic'] as const).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all',
-                  mode === m
-                    ? 'bg-white text-blue-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700',
-                )}
+                style={{
+                  padding: '10px 0', marginRight: 28, background: 'none', border: 'none',
+                  cursor: 'pointer', fontSize: 13, fontWeight: mode === m ? 500 : 400,
+                  color: mode === m ? C.text : C.muted, fontFamily: BODY,
+                  borderBottom: mode === m ? `2px solid ${C.brand}` : '2px solid transparent',
+                  marginBottom: -1, transition: 'all 0.2s',
+                }}
               >
-                {m === 'patient'
-                  ? <User className="h-4 w-4" />
-                  : <Building2 className="h-4 w-4" />}
                 {m === 'patient' ? 'Patient' : 'Clinic Staff'}
               </button>
             ))}
@@ -97,21 +125,24 @@ export function LoginPage() {
 
           <motion.div
             key={mode}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
-              {mode === 'patient' ? 'Welcome back' : 'Staff login'}
+            <h1 style={{
+              fontSize: 32, fontWeight: 700, fontFamily: DISPLAY,
+              color: C.text, lineHeight: 1.1, marginBottom: 8, letterSpacing: '-0.02em',
+            }}>
+              {mode === 'patient' ? 'Welcome back.' : 'Staff portal.'}
             </h1>
-            <p className="text-sm text-gray-500 mb-8">
+            <p style={{ fontSize: 14, color: C.muted, marginBottom: 32, fontFamily: BODY, fontWeight: 300 }}>
               {mode === 'patient'
                 ? 'Sign in to manage your health'
-                : 'Access your clinic portal'}
+                : 'Access your clinic dashboard'}
             </p>
           </motion.div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Input
               label="Email address"
               type="email"
@@ -120,7 +151,7 @@ export function LoginPage() {
               {...register('email')}
             />
 
-            <div className="relative">
+            <div style={{ position: 'relative' }}>
               <Input
                 label="Password"
                 type={showPassword ? 'text' : 'password'}
@@ -131,10 +162,13 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
                 tabIndex={-1}
+                style={{
+                  position: 'absolute', right: 12, top: 30, background: 'none',
+                  border: 'none', cursor: 'pointer', color: C.muted, padding: 0,
+                }}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
 
@@ -145,12 +179,16 @@ export function LoginPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="space-y-3 overflow-hidden"
+                  style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 12 }}
                 >
-                  <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
-                    <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
-                    <p className="text-xs text-blue-700">
-                      Enter your authenticator code or a backup code to continue
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    background: `${C.brand}0A`, border: `1px solid ${C.brand}30`,
+                    borderRadius: 4, padding: '10px 12px',
+                  }}>
+                    <ShieldCheck size={15} style={{ color: C.brand, flexShrink: 0, marginTop: 1 }} />
+                    <p style={{ fontSize: 12, color: C.body, fontFamily: BODY, lineHeight: 1.5 }}>
+                      Enter your authenticator code or a backup code to continue.
                     </p>
                   </div>
                   <Input
@@ -173,38 +211,52 @@ export function LoginPage() {
             </AnimatePresence>
 
             {serverError && (
-              <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
+              <div style={{
+                borderRadius: 4, background: C.dangerBg, border: `1px solid ${C.danger}30`,
+                padding: '10px 12px', fontSize: 13, color: C.danger, fontFamily: BODY,
+              }}>
                 {serverError}
               </div>
             )}
 
-            <div className="flex items-center justify-end">
-              <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700">
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Link to="/forgot-password" style={{ fontSize: 12, color: C.muted, fontFamily: BODY, textDecoration: 'none' }}>
                 Forgot password?
               </Link>
             </div>
 
-            <Button
+            <button
               type="submit"
-              loading={isSubmitting}
-              size="lg"
-              className="w-full bg-blue-700 hover:bg-blue-800 focus-visible:ring-blue-500"
+              disabled={isSubmitting}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 4, border: 'none',
+                background: isSubmitting ? C.muted : C.brand, color: 'white',
+                fontSize: 14, fontWeight: 500, fontFamily: BODY, cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                transition: 'opacity 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
             >
-              {requires2FA ? 'Verify & sign in' : 'Sign in'}
-            </Button>
+              {isSubmitting ? (
+                <>
+                  <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />
+                  Signing in…
+                </>
+              ) : (
+                requires2FA ? 'Verify & sign in' : 'Sign in'
+              )}
+            </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-500">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-700">
+          <p style={{ marginTop: 28, textAlign: 'center', fontSize: 13, color: C.muted, fontFamily: BODY }}>
+            Don't have an account?{' '}
+            <Link to="/register" style={{ color: C.brand, textDecoration: 'none', fontWeight: 500 }}>
               Create account
             </Link>
           </p>
 
           {mode === 'clinic' && (
-            <p className="mt-2 text-center text-xs text-gray-400">
-              Admin portal?{' '}
-              <Link to="/clinic-login" className="text-blue-600 hover:text-blue-700">
+            <p style={{ marginTop: 8, textAlign: 'center', fontSize: 12, color: C.muted, fontFamily: BODY }}>
+              Admin access?{' '}
+              <Link to="/clinic-login" style={{ color: C.brand, textDecoration: 'none' }}>
                 Use clinic login
               </Link>
             </p>
@@ -212,26 +264,69 @@ export function LoginPage() {
         </div>
       </div>
 
-      {/* Right: branding panel */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-700 via-blue-800 to-blue-950 items-center justify-center p-12">
-        <div className="text-white text-center max-w-sm">
-          <div className="w-24 h-24 rounded-3xl bg-white/10 backdrop-blur-sm flex items-center justify-center mx-auto mb-8 shadow-2xl">
-            <Activity className="h-12 w-12 text-white" />
+      {/* ── Right: editorial dark panel ── */}
+      <div
+        className="hidden lg:flex"
+        style={{
+          flex: 1, flexDirection: 'column', justifyContent: 'center',
+          padding: '80px 72px', background: C.dark, position: 'relative', overflow: 'hidden',
+        }}
+      >
+        {/* Subtle dot grid */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          backgroundImage: `radial-gradient(circle, ${C.rule}10 1px, transparent 1px)`,
+          backgroundSize: '36px 36px', opacity: 0.8,
+        }} />
+
+        {/* Gold rule accent top */}
+        <div style={{ position: 'absolute', top: 0, left: 72, right: 72, height: 2, background: C.accent, opacity: 0.4 }} />
+
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 420 }}>
+          {/* Section label */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+            <div style={{ width: 20, height: 1, background: C.accent }} />
+            <span style={{ fontSize: 11, color: C.accent, fontFamily: BODY, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              Kenya-First Health Tech
+            </span>
           </div>
-          <h2 className="text-3xl font-bold mb-4">Your health, simplified</h2>
-          <p className="text-blue-200 text-lg leading-relaxed">
-            AI-powered triage, clinic booking, and prescription management — all in one platform.
+
+          {/* Editorial statement */}
+          <h2 style={{
+            fontSize: 'clamp(28px, 3.5vw, 44px)', fontWeight: 700,
+            fontFamily: DISPLAY, color: C.canvas, lineHeight: 1.15,
+            letterSpacing: '-0.02em', marginBottom: 20,
+          }}>
+            Your health,<br />
+            <em style={{ color: C.accent }}>guided by AI.</em>
+          </h2>
+
+          <p style={{ fontSize: 15, color: `${C.canvas}80`, lineHeight: 1.7, fontFamily: BODY, fontWeight: 300, marginBottom: 52 }}>
+            AI-powered triage, verified clinic bookings, and seamless M-Pesa payments — designed for every Kenyan, wherever they are.
           </p>
-          <div className="mt-10 grid grid-cols-3 gap-4">
-            {STATS.map((s) => (
-              <div key={s.label} className="rounded-xl bg-white/10 backdrop-blur-sm p-4">
-                <div className="text-xl font-bold">{s.value}</div>
-                <div className="text-xs text-blue-300 mt-0.5">{s.label}</div>
+
+          {/* Stats — typographic, no cards */}
+          <div style={{ borderTop: `1px solid ${C.dark2}`, paddingTop: 36, display: 'flex', flexDirection: 'column', gap: 28 }}>
+            {PANEL_STATS.map(({ value, label }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
+                <span style={{ fontSize: 28, fontWeight: 700, fontFamily: DISPLAY, color: C.canvas, lineHeight: 1, letterSpacing: '-0.02em', minWidth: 80 }}>{value}</span>
+                <span style={{ fontSize: 13, color: `${C.canvas}55`, fontFamily: BODY, fontWeight: 300 }}>{label}</span>
               </div>
             ))}
           </div>
+
+          {/* ECG decorative line */}
+          <div style={{ marginTop: 52, opacity: 0.2 }}>
+            <svg width="220" height="32" viewBox="0 0 220 32" fill="none">
+              <path d="M0 16 L40 16 L52 4 L64 28 L76 2 L88 16 L220 16" stroke={C.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }

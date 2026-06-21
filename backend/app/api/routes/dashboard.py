@@ -17,6 +17,10 @@ from app.models.triage import SymptomLog, TriageSession
 from app.models.user import User, UserRole
 
 
+PLAN_PRICES_KES = {"basic": 3_500, "pro": 8_500, "enterprise": 18_000}
+VALID_PLANS = set(PLAN_PRICES_KES.keys())
+
+
 class _ReplyBody(BaseModel):
     reply: str
 
@@ -26,6 +30,11 @@ class _ChangeRequestBody(BaseModel):
     current_value: Optional[str] = None
     requested_value: str
     reason: Optional[str] = None
+
+
+class _UpgradeBody(BaseModel):
+    plan: str
+    mpesa_phone: str
 
 router = APIRouter()
 
@@ -502,6 +511,56 @@ def clinic_orders(
         }
         for order, patient_name in rows
     ]
+
+
+# ── Subscription ─────────────────────────────────────────────────────────────
+
+@router.get("/subscription")
+def get_subscription(
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    clinic = _get_clinic(current_user, db)
+    return {
+        "plan": clinic.subscription_plan,
+        "price_kes": PLAN_PRICES_KES.get(clinic.subscription_plan, 0),
+        "started_at": clinic.subscription_started_at.isoformat() if clinic.subscription_started_at else None,
+        "expires_at": clinic.subscription_expires_at.isoformat() if clinic.subscription_expires_at else None,
+        "mpesa_paybill": clinic.mpesa_paybill,
+        "clinic_name": clinic.name,
+    }
+
+
+@router.post("/subscription/upgrade")
+def upgrade_subscription(
+    body: _UpgradeBody,
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    if body.plan not in VALID_PLANS:
+        raise HTTPException(status_code=400, detail=f"Invalid plan: {body.plan}. Must be one of: {', '.join(VALID_PLANS)}")
+
+    import re
+    if not re.match(r"^\+?2547\d{8}$|^07\d{8}$|^7\d{8}$", body.mpesa_phone.replace(" ", "")):
+        raise HTTPException(status_code=422, detail="Enter a valid Safaricom M-Pesa number (e.g. 0712 345 678)")
+
+    clinic = _get_clinic(current_user, db)
+
+    now = datetime.now(timezone.utc)
+    clinic.subscription_plan = body.plan
+    clinic.subscription_started_at = now
+    clinic.subscription_expires_at = now + timedelta(days=30)
+    db.commit()
+
+    price = PLAN_PRICES_KES[body.plan]
+    return {
+        "ok": True,
+        "plan": clinic.subscription_plan,
+        "price_kes": price,
+        "started_at": clinic.subscription_started_at.isoformat(),
+        "expires_at": clinic.subscription_expires_at.isoformat(),
+        "message": f"KES {price:,} M-Pesa payment request sent to {body.mpesa_phone}. Enter your PIN to complete.",
+    }
 
 
 # ── Change requests ───────────────────────────────────────────────────────────

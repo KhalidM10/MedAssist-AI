@@ -31,23 +31,29 @@ const STATUSES = [
 ]
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  pending:   { bg: '#FEF3C7', text: '#92400E' },
-  confirmed: { bg: '#DBEAFE', text: '#1E40AF' },
-  completed: { bg: '#D1FAE5', text: '#065F46' },
-  cancelled: { bg: '#F3F4F6', text: '#6B7280' },
+  pending:   { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  confirmed: { bg: 'var(--color-brand-light)',   text: 'var(--color-brand)' },
+  completed: { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  cancelled: { bg: 'var(--color-surface-2)',     text: 'var(--color-text-tertiary)' },
 }
 
-const NEXT_ACTIONS: Record<string, { label: string; next: string; style: string }[]> = {
+const NEXT_ACTIONS: Record<string, { label: string; next: string; variant: 'brand' | 'success' | 'danger' }[]> = {
   pending:   [
-    { label: 'Confirm', next: 'confirmed', style: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-    { label: 'Cancel',  next: 'cancelled', style: 'bg-red-50 text-red-600 hover:bg-red-100' },
+    { label: 'Confirm', next: 'confirmed', variant: 'brand' },
+    { label: 'Cancel',  next: 'cancelled', variant: 'danger' },
   ],
   confirmed: [
-    { label: 'Complete', next: 'completed', style: 'bg-green-50 text-green-700 hover:bg-green-100' },
-    { label: 'Cancel',   next: 'cancelled', style: 'bg-red-50 text-red-600 hover:bg-red-100' },
+    { label: 'Complete', next: 'completed', variant: 'success' },
+    { label: 'Cancel',   next: 'cancelled', variant: 'danger' },
   ],
   completed: [],
   cancelled: [],
+}
+
+const ACTION_STYLE: Record<'brand' | 'success' | 'danger', { bg: string; color: string; hoverBg: string }> = {
+  brand:   { bg: 'var(--color-brand-light)',   color: 'var(--color-brand)',   hoverBg: 'var(--color-border)' },
+  success: { bg: 'var(--color-success-light)', color: 'var(--color-success)', hoverBg: 'var(--color-border)' },
+  danger:  { bg: 'var(--color-danger-light)',  color: 'var(--color-danger)',  hoverBg: 'var(--color-border)' },
 }
 
 export function ClinicAppointmentsPage() {
@@ -98,14 +104,17 @@ export function ClinicAppointmentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-7">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>Appointments</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
             {filtered.length} appointment{filtered.length !== 1 ? 's' : ''} shown
           </p>
         </div>
         <button
           onClick={() => refetch()}
-          className="flex items-center gap-2 text-[13px] font-medium text-gray-500 hover:text-gray-700 transition-colors"
+          className="flex items-center gap-2 text-[13px] font-medium transition-colors"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-tertiary)')}
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
@@ -113,121 +122,128 @@ export function ClinicAppointmentsPage() {
       </div>
 
       {/* Filters */}
-      <div
-        className="rounded-2xl p-4 mb-6 flex flex-wrap gap-3"
-        style={{ backgroundColor: 'white', border: '1px solid #eceae4' }}
-      >
+      <div className="card p-4 mb-6 flex flex-wrap gap-3">
         {/* Search */}
-        <div className="flex items-center gap-2 flex-1 min-w-[200px] rounded-xl px-3 py-2.5" style={{ border: '1px solid #e5e2dc' }}>
-          <Search className="h-4 w-4 text-gray-400 shrink-0" />
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] rounded-xl px-3 py-2.5" style={{ border: '1px solid var(--color-border)' }}>
+          <Search className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
           <input
             type="text"
             placeholder="Search patient, doctor, reference…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 text-[13px] bg-transparent outline-none placeholder:text-gray-400"
+            className="flex-1 text-[13px] bg-transparent outline-none"
+            style={{ color: 'var(--color-text-primary)' }}
           />
         </div>
 
         {/* Date */}
-        <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ border: '1px solid #e5e2dc' }}>
-          <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ border: '1px solid var(--color-border)' }}>
+          <Calendar className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
           <input
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="text-[13px] bg-transparent outline-none text-gray-700"
+            className="text-[13px] bg-transparent outline-none"
+            style={{ color: 'var(--color-text-primary)' }}
           />
           {date && (
-            <button onClick={() => setDate('')} className="text-gray-400 hover:text-gray-600 ml-1 text-[11px]">✕</button>
+            <button onClick={() => setDate('')} className="ml-1 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>✕</button>
           )}
         </div>
 
         {/* Doctor */}
-        <div className="relative flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ border: '1px solid #e5e2dc' }}>
+        <div className="relative flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ border: '1px solid var(--color-border)' }}>
           <select
             value={doctorId}
             onChange={e => setDoctorId(e.target.value)}
-            className="text-[13px] bg-transparent outline-none text-gray-700 pr-4 appearance-none cursor-pointer"
+            className="text-[13px] bg-transparent outline-none pr-4 appearance-none cursor-pointer"
+            style={{ color: 'var(--color-text-primary)' }}
           >
             <option value="">All doctors</option>
             {(doctors ?? []).map(d => (
               <option key={d.id} value={d.id}>{d.full_name}</option>
             ))}
           </select>
-          <ChevronDown className="h-3.5 w-3.5 text-gray-400 absolute right-3 pointer-events-none" />
+          <ChevronDown className="h-3.5 w-3.5 absolute right-3 pointer-events-none" style={{ color: 'var(--color-text-tertiary)' }} />
         </div>
 
         {/* Status */}
-        <div className="relative flex items-center rounded-xl px-3 py-2.5" style={{ border: '1px solid #e5e2dc' }}>
+        <div className="relative flex items-center rounded-xl px-3 py-2.5" style={{ border: '1px solid var(--color-border)' }}>
           <select
             value={status}
             onChange={e => setStatus(e.target.value)}
-            className="text-[13px] bg-transparent outline-none text-gray-700 pr-4 appearance-none cursor-pointer"
+            className="text-[13px] bg-transparent outline-none pr-4 appearance-none cursor-pointer"
+            style={{ color: 'var(--color-text-primary)' }}
           >
             {STATUSES.map(s => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-          <ChevronDown className="h-3.5 w-3.5 text-gray-400 absolute right-3 pointer-events-none" />
+          <ChevronDown className="h-3.5 w-3.5 absolute right-3 pointer-events-none" style={{ color: 'var(--color-text-tertiary)' }} />
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'white', border: '1px solid #eceae4' }}>
+      <div className="card overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="h-6 w-6 rounded-full border-2 border-blue-700 border-t-transparent animate-spin" />
+            <div className="h-6 w-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--color-brand)', borderTopColor: 'transparent' }} />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Calendar className="h-10 w-10 text-gray-200 mb-3" />
-            <p className="text-[14px] font-semibold text-gray-500">No appointments found</p>
-            <p className="text-[12px] text-gray-400 mt-1">Try adjusting your filters</p>
+            <Calendar className="h-10 w-10 mb-3" style={{ color: 'var(--color-border)' }} />
+            <p className="text-[14px] font-semibold" style={{ color: 'var(--color-text-secondary)' }}>No appointments found</p>
+            <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-tertiary)' }}>Try adjusting your filters</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr style={{ borderBottom: '1px solid #f1f0ec' }}>
+                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                   {['Reference', 'Patient', 'Date & Time', 'Doctor', 'Reason', 'Amount', 'Status', 'Actions'].map(col => (
                     <th
                       key={col}
-                      className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-400"
+                      className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide"
+                      style={{ color: 'var(--color-text-tertiary)' }}
                     >
                       {col}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f8f7f4]">
+              <tbody>
                 {filtered.map(appt => {
                   const s = STATUS_STYLE[appt.status] ?? STATUS_STYLE.pending
                   const actions = NEXT_ACTIONS[appt.status] ?? []
                   const isUpdating = updatingId === appt.id
 
                   return (
-                    <tr key={appt.id} className="hover:bg-[#fafaf8] transition-colors">
+                    <tr
+                      key={appt.id}
+                      style={{ borderBottom: '1px solid var(--color-border)' }}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
                       <td className="px-5 py-3.5">
-                        <span className="text-[12px] font-mono font-semibold text-gray-500">
+                        <span className="text-[12px] font-semibold" style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
                           {appt.booking_reference}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <p className="text-[13px] font-semibold text-gray-900">{appt.patient_name}</p>
+                        <p className="text-[13px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{appt.patient_name}</p>
                       </td>
                       <td className="px-5 py-3.5">
-                        <p className="text-[13px] text-gray-900">{appt.appointment_date}</p>
-                        <p className="text-[11px] text-gray-400">{appt.appointment_time}</p>
+                        <p className="text-[13px]" style={{ color: 'var(--color-text-primary)' }}>{appt.appointment_date}</p>
+                        <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>{appt.appointment_time}</p>
                       </td>
                       <td className="px-5 py-3.5">
-                        <p className="text-[13px] text-gray-700">{appt.doctor_name ?? '—'}</p>
+                        <p className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>{appt.doctor_name ?? '—'}</p>
                       </td>
                       <td className="px-5 py-3.5 max-w-[160px]">
-                        <p className="text-[12px] text-gray-500 truncate">{appt.reason ?? '—'}</p>
+                        <p className="text-[12px] truncate" style={{ color: 'var(--color-text-tertiary)' }}>{appt.reason ?? '—'}</p>
                       </td>
                       <td className="px-5 py-3.5">
-                        <p className="text-[13px] font-medium text-gray-900">{formatKES(appt.amount_kes)}</p>
+                        <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-primary)' }}>{formatKES(appt.amount_kes)}</p>
                       </td>
                       <td className="px-5 py-3.5">
                         <span
@@ -240,23 +256,29 @@ export function ClinicAppointmentsPage() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5">
                           {isUpdating ? (
-                            <div className="h-4 w-4 rounded-full border-2 border-blue-700 border-t-transparent animate-spin" />
+                            <div className="h-4 w-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--color-brand)', borderTopColor: 'transparent' }} />
                           ) : (
-                            actions.map(({ label, next, style }) => (
-                              <button
-                                key={next}
-                                onClick={() => {
-                                  setUpdatingId(appt.id)
-                                  mutation.mutate({ id: appt.id, newStatus: next })
-                                }}
-                                className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors ${style}`}
-                              >
-                                {label}
-                              </button>
-                            ))
+                            actions.map(({ label, next, variant }) => {
+                              const ast = ACTION_STYLE[variant]
+                              return (
+                                <button
+                                  key={next}
+                                  onClick={() => {
+                                    setUpdatingId(appt.id)
+                                    mutation.mutate({ id: appt.id, newStatus: next })
+                                  }}
+                                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors"
+                                  style={{ backgroundColor: ast.bg, color: ast.color }}
+                                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                                >
+                                  {label}
+                                </button>
+                              )
+                            })
                           )}
                           {actions.length === 0 && (
-                            <span className="text-[11px] text-gray-300">—</span>
+                            <span className="text-[11px]" style={{ color: 'var(--color-border)' }}>—</span>
                           )}
                         </div>
                       </td>

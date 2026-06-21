@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
-import { Star, ThumbsUp, MessageSquare, TrendingUp, Filter, CornerDownRight, Send, Loader2 } from 'lucide-react'
+import { Star, MessageSquare, TrendingUp, Filter, CornerDownRight, Send, Loader2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useAuthStore } from '../../store/auth'
 import { cn } from '../../lib/utils'
@@ -10,82 +10,14 @@ interface Review {
   id: string
   patient_name: string
   rating: number
-  comment: string
-  date: string
+  title: string | null
+  body: string | null
+  created_at: string
+  is_verified: boolean
   doctor_name: string | null
-  helpful: number
-  category: 'appointment' | 'medicine' | 'staff'
-  replied: boolean
+  response: string | null
+  response_at: string | null
 }
-
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: '1',
-    patient_name: 'Wanjiku M.',
-    rating: 5,
-    comment: 'Excellent service from Dr. Kamau. The consultation was thorough and the staff were very friendly. I especially appreciated how quickly I got the appointment through the app.',
-    date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    doctor_name: 'Dr. James Kamau',
-    helpful: 8,
-    category: 'appointment',
-    replied: true,
-  },
-  {
-    id: '2',
-    patient_name: 'Brian O.',
-    rating: 4,
-    comment: 'Good clinic, clean environment and professional staff. Waiting time was a bit long but the doctor was very helpful and explained everything clearly.',
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    doctor_name: 'Dr. Amina Hassan',
-    helpful: 5,
-    category: 'appointment',
-    replied: false,
-  },
-  {
-    id: '3',
-    patient_name: 'Grace K.',
-    rating: 5,
-    comment: 'The medicine delivery was fast and the packaging was secure. All items were correct and the prices are competitive. Will definitely order again.',
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    doctor_name: null,
-    helpful: 12,
-    category: 'medicine',
-    replied: true,
-  },
-  {
-    id: '4',
-    patient_name: 'Peter N.',
-    rating: 3,
-    comment: 'The appointment itself was fine but I had trouble getting the confirmation via the app. The reception team was helpful when I called directly.',
-    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    doctor_name: 'Dr. James Kamau',
-    helpful: 3,
-    category: 'staff',
-    replied: false,
-  },
-  {
-    id: '5',
-    patient_name: 'Amina H.',
-    rating: 5,
-    comment: 'MedAssist AI made it so easy to book and the clinic was exactly as described. The symptom checker actually helped me know what to tell the doctor. Very impressed!',
-    date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    doctor_name: 'Dr. Sarah Mwangi',
-    helpful: 15,
-    category: 'appointment',
-    replied: true,
-  },
-  {
-    id: '6',
-    patient_name: 'Joseph M.',
-    rating: 4,
-    comment: 'Quick service and friendly staff. The doctor was knowledgeable and the prescription was ready fast. Minor improvement needed on parking space.',
-    date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    doctor_name: 'Dr. Amina Hassan',
-    helpful: 7,
-    category: 'appointment',
-    replied: false,
-  },
-]
 
 function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
@@ -113,60 +45,59 @@ function RatingDistribution({ reviews }: { reviews: Review[] }) {
       {counts.map(({ rating, count }) => (
         <div key={rating} className="flex items-center gap-3">
           <div className="flex items-center gap-1 w-8 shrink-0">
-            <span className="text-xs font-bold text-gray-700">{rating}</span>
+            <span className="text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>{rating}</span>
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
           </div>
-          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-2)' }}>
             <div
               className="h-full rounded-full bg-amber-400 transition-all"
               style={{ width: `${(count / max) * 100}%` }}
             />
           </div>
-          <span className="text-xs text-gray-500 w-4 text-right">{count}</span>
+          <span className="text-xs w-4 text-right" style={{ color: 'var(--color-text-tertiary)' }}>{count}</span>
         </div>
       ))}
     </div>
   )
 }
 
-function ReviewCard({ review, clinicId }: { review: Review; clinicId?: string }) {
+function ReviewCard({ review }: { review: Review }) {
   const qc = useQueryClient()
-  const [liked, setLiked]         = useState(false)
   const [replyOpen, setReplyOpen] = useState(false)
   const [replyText, setReplyText] = useState('')
+  const replied = !!review.response
 
   const replyMutation = useMutation({
     mutationFn: () =>
-      api.post(`/clinics/${clinicId}/reviews/${review.id}/reply`, { reply: replyText.trim() }),
+      api.post(`/dashboard/reviews/${review.id}/reply`, { reply: replyText.trim() }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['clinic-reviews', clinicId] })
-      setReplyOpen(false)
-      setReplyText('')
-    },
-    onError: () => {
-      qc.invalidateQueries({ queryKey: ['clinic-reviews', clinicId] })
+      qc.invalidateQueries({ queryKey: ['clinic-reviews'] })
       setReplyOpen(false)
       setReplyText('')
     },
   })
 
   return (
-    <div
-      className="bg-white rounded-2xl p-5 space-y-3"
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)' }}
-    >
+    <div className="card p-5 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
-            className="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center text-sm font-extrabold"
-            style={{ backgroundColor: '#EFF6FF', color: '#1E40AF' }}
+            className="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center text-sm font-bold"
+            style={{ backgroundColor: 'var(--color-brand-light)', color: 'var(--color-brand)' }}
           >
             {review.patient_name[0].toUpperCase()}
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-900">{review.patient_name}</p>
-            <p className="text-[11px] text-gray-400">
-              {format(parseISO(review.date), 'd MMM yyyy')}
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>{review.patient_name}</p>
+              {review.is_verified && (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase" style={{ backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }}>
+                  Verified
+                </span>
+              )}
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+              {format(parseISO(review.created_at), 'd MMM yyyy')}
               {review.doctor_name && ` · ${review.doctor_name}`}
             </p>
           </div>
@@ -174,66 +105,65 @@ function ReviewCard({ review, clinicId }: { review: Review; clinicId?: string })
 
         <div className="flex items-center gap-2 shrink-0">
           <StarRating rating={review.rating} />
-          {review.replied && (
-            <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-bold">
+          {replied && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }}>
               Replied
             </span>
           )}
         </div>
       </div>
 
-      <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
+      {review.title && (
+        <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{review.title}</p>
+      )}
 
-      <div className="flex items-center justify-between pt-1">
-        <span
-          className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide capitalize"
-          style={{
-            backgroundColor: review.category === 'appointment' ? '#EFF6FF'
-              : review.category === 'medicine' ? '#ECFDF5' : '#FEF3C7',
-            color: review.category === 'appointment' ? '#1E40AF'
-              : review.category === 'medicine' ? '#059669' : '#92400E',
-          }}
-        >
-          {review.category}
-        </span>
+      {review.body && (
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{review.body}</p>
+      )}
 
-        <div className="flex items-center gap-2">
-          {!review.replied && (
-            <button
-              onClick={() => setReplyOpen(v => !v)}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-gray-100"
-              style={{ color: replyOpen ? '#1E40AF' : '#9CA3AF' }}
-            >
-              <MessageSquare className="h-3.5 w-3.5" /> Reply
-            </button>
-          )}
+      {review.response && (
+        <div className="rounded-xl p-3 space-y-1" style={{ backgroundColor: 'var(--color-brand-light)', border: '1px solid var(--color-border)' }}>
+          <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-brand)' }}>Clinic response</p>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{review.response}</p>
+        </div>
+      )}
+
+      {!replied && (
+        <div className="flex items-center justify-end pt-1">
           <button
-            onClick={() => setLiked(v => !v)}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-gray-100"
-            style={{ color: liked ? '#1E40AF' : '#9CA3AF' }}
+            onClick={() => setReplyOpen(v => !v)}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors"
+            style={{ color: replyOpen ? 'var(--color-brand)' : 'var(--color-text-tertiary)' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-surface-2)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <ThumbsUp className={cn('h-3.5 w-3.5', liked && 'fill-current')} />
-            {review.helpful + (liked ? 1 : 0)} helpful
+            <MessageSquare className="h-3.5 w-3.5" /> Reply
           </button>
         </div>
-      </div>
+      )}
 
       {replyOpen && (
-        <div className="pt-2 border-t border-gray-50">
+        <div className="pt-2" style={{ borderTop: '1px solid var(--color-border)' }}>
           <div className="flex items-start gap-2">
-            <CornerDownRight className="h-3.5 w-3.5 text-gray-300 mt-3 shrink-0" />
+            <CornerDownRight className="h-3.5 w-3.5 mt-3 shrink-0" style={{ color: 'var(--color-border-strong)' }} />
             <div className="flex-1 space-y-2">
               <textarea
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
                 rows={2}
                 placeholder="Write a reply to this review…"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+                className="w-full rounded-xl px-3 py-2 text-xs outline-none resize-none transition-all"
+                style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-brand-light)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
               />
               <div className="flex items-center justify-end gap-2">
                 <button
                   onClick={() => { setReplyOpen(false); setReplyText('') }}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-xs transition-colors"
+                  style={{ color: 'var(--color-text-tertiary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-tertiary)')}
                 >
                   Cancel
                 </button>
@@ -241,7 +171,7 @@ function ReviewCard({ review, clinicId }: { review: Review; clinicId?: string })
                   onClick={() => replyMutation.mutate()}
                   disabled={replyText.trim().length < 5 || replyMutation.isPending}
                   className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white transition-all disabled:opacity-40"
-                  style={{ backgroundColor: '#1E40AF' }}
+                  style={{ backgroundColor: 'var(--color-brand)' }}
                 >
                   {replyMutation.isPending
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -259,151 +189,134 @@ function ReviewCard({ review, clinicId }: { review: Review; clinicId?: string })
 
 export function ClinicReviewsPage() {
   const { user } = useAuthStore()
-  const clinicId = user?.clinic_id
 
   const [filterRating, setFilterRating] = useState<number | null>(null)
-  const [filterCategory, setFilterCategory] = useState<string>('all')
 
-  const { data: apiReviews } = useQuery<Review[]>({
-    queryKey: ['clinic-reviews', clinicId],
-    queryFn: async () => {
-      const { data } = await api.get(`/clinics/${clinicId}/reviews`)
-      return data
-    },
-    enabled: !!clinicId,
+  const { data: reviews = [], isLoading } = useQuery<Review[]>({
+    queryKey: ['clinic-reviews'],
+    queryFn: () => api.get('/dashboard/reviews').then(r => r.data),
+    enabled: !!user?.clinic_id,
+    staleTime: 60_000,
   })
 
-  const reviews = apiReviews && apiReviews.length > 0 ? apiReviews : MOCK_REVIEWS
+  const filtered = filterRating === null ? reviews : reviews.filter(r => r.rating === filterRating)
 
-  const filtered = reviews.filter(r => {
-    const matchRating = filterRating === null || r.rating === filterRating
-    const matchCat = filterCategory === 'all' || r.category === filterCategory
-    return matchRating && matchCat
-  })
-
-  const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-  const replyRate = Math.round((reviews.filter(r => r.replied).length / reviews.length) * 100)
+  const avgRating = reviews.length > 0
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+    : 0
+  const replyRate = reviews.length > 0
+    ? Math.round((reviews.filter(r => !!r.response).length / reviews.length) * 100)
+    : 0
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Reviews</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {reviews.length} reviews · {avgRating.toFixed(1)} average rating
+          <h1 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>Reviews</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
+            {reviews.length} review{reviews.length !== 1 ? 's' : ''}{reviews.length > 0 ? ` · ${avgRating.toFixed(1)} average` : ''}
           </p>
         </div>
       </div>
 
-      {/* Summary panel */}
-      <div
-        className="bg-white rounded-2xl p-6 grid grid-cols-1 gap-6 sm:grid-cols-3"
-        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-      >
-        {/* Average score */}
-        <div className="flex flex-col items-center justify-center gap-2 sm:border-r sm:border-gray-100">
-          <p className="text-5xl font-extrabold text-gray-900">{avgRating.toFixed(1)}</p>
-          <StarRating rating={Math.round(avgRating)} size={20} />
-          <p className="text-xs text-gray-400">{reviews.length} total reviews</p>
+      {isLoading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card h-32 animate-pulse" />
+          ))}
         </div>
-
-        {/* Distribution */}
-        <div className="sm:col-span-2">
-          <RatingDistribution reviews={reviews} />
-        </div>
-      </div>
-
-      {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Avg Rating', val: avgRating.toFixed(1), suffix: '/ 5', color: '#D97706' },
-          { label: 'Reply Rate', val: `${replyRate}%`, suffix: '', color: '#059669' },
-          { label: 'This Month', val: reviews.filter(r => r.date > new Date(Date.now() - 30 * 86400000).toISOString()).length.toString(), suffix: ' reviews', color: '#1E40AF' },
-        ].map(s => (
+      ) : reviews.length === 0 ? (
+        <div className="card flex flex-col items-center py-20 text-center">
           <div
-            key={s.label}
-            className="bg-white rounded-2xl p-4"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+            className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4"
+            style={{ backgroundColor: 'var(--color-warning-light)' }}
           >
-            <p className="text-2xl font-extrabold" style={{ color: s.color }}>
-              {s.val}<span className="text-sm font-normal text-gray-400">{s.suffix}</span>
-            </p>
-            <p className="text-xs font-semibold text-gray-500 mt-1">{s.label}</p>
+            <Star className="h-7 w-7" style={{ color: 'var(--color-warning)' }} />
           </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Filter className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-xs font-semibold text-gray-500">Filter:</span>
-        </div>
-        {/* Rating filter */}
-        <div className="flex items-center gap-1.5">
-          {[null, 5, 4, 3, 2, 1].map(r => (
-            <button
-              key={r ?? 'all'}
-              onClick={() => setFilterRating(r)}
-              className={cn(
-                'px-3 py-1.5 rounded-xl text-xs font-semibold transition-all',
-                filterRating === r
-                  ? 'text-white shadow-sm'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50',
-              )}
-              style={filterRating === r ? { backgroundColor: '#1E40AF' } : {}}
-            >
-              {r === null ? 'All stars' : `${r}★`}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5 ml-2">
-          {['all', 'appointment', 'medicine', 'staff'].map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              className={cn(
-                'px-3 py-1.5 rounded-xl text-xs font-semibold transition-all capitalize',
-                filterCategory === cat
-                  ? 'text-white shadow-sm'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50',
-              )}
-              style={filterCategory === cat ? { backgroundColor: '#059669' } : {}}
-            >
-              {cat === 'all' ? 'All types' : cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Review list */}
-      {filtered.length === 0 ? (
-        <div
-          className="flex flex-col items-center py-16 text-center bg-white rounded-2xl"
-          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-        >
-          <div className="h-14 w-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-4">
-            <Star className="h-7 w-7 text-amber-300" />
-          </div>
-          <p className="text-sm font-semibold text-gray-600">No reviews match this filter</p>
-          <p className="text-xs text-gray-400 mt-1">Try adjusting the rating or category filter.</p>
+          <p className="text-sm font-bold" style={{ color: 'var(--color-text-secondary)' }}>No reviews yet</p>
+          <p className="text-xs mt-1 max-w-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+            Patient reviews will appear here once they submit feedback after their appointments.
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filtered.map(review => (
-            <ReviewCard key={review.id} review={review} clinicId={clinicId} />
-          ))}
-        </div>
+        <>
+          {/* Summary panel */}
+          <div className="card p-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div className="flex flex-col items-center justify-center gap-2" style={{ borderRight: '1px solid var(--color-border)' }}>
+              <p className="text-5xl font-bold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>{avgRating.toFixed(1)}</p>
+              <StarRating rating={Math.round(avgRating)} size={20} />
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{reviews.length} total reviews</p>
+            </div>
+            <div className="sm:col-span-2">
+              <RatingDistribution reviews={reviews} />
+            </div>
+          </div>
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Avg Rating', val: avgRating.toFixed(1), suffix: '/ 5', color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
+              { label: 'Reply Rate', val: `${replyRate}%`, suffix: '', color: 'var(--color-success)', bg: 'var(--color-success-light)' },
+              { label: 'This Month', val: reviews.filter(r => r.created_at > new Date(Date.now() - 30 * 86400000).toISOString()).length.toString(), suffix: ' reviews', color: 'var(--color-brand)', bg: 'var(--color-brand-light)' },
+            ].map(s => (
+              <div key={s.label} className="card p-4" style={{ backgroundColor: s.bg }}>
+                <p className="text-2xl font-bold" style={{ color: s.color, fontFamily: 'var(--font-display)' }}>
+                  {s.val}<span className="text-sm font-normal" style={{ color: 'var(--color-text-tertiary)' }}>{s.suffix}</span>
+                </p>
+                <p className="text-xs font-semibold mt-1" style={{ color: 'var(--color-text-secondary)' }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Rating filter */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Filter className="h-3.5 w-3.5" style={{ color: 'var(--color-border-strong)' }} />
+              <span className="text-xs font-semibold" style={{ color: 'var(--color-text-tertiary)' }}>Filter:</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {[null, 5, 4, 3, 2, 1].map(r => (
+                <button
+                  key={r ?? 'all'}
+                  onClick={() => setFilterRating(r)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-xl text-xs font-semibold transition-all',
+                    filterRating === r
+                      ? 'text-white shadow-sm'
+                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50',
+                  )}
+                  style={filterRating === r ? { backgroundColor: 'var(--color-brand)' } : {}}
+                >
+                  {r === null ? 'All stars' : `${r}★`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Review list */}
+          {filtered.length === 0 ? (
+            <div className="card flex flex-col items-center py-16 text-center">
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-text-secondary)' }}>No reviews match this filter</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>Try a different star rating.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filtered.map(review => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Note */}
-      <div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4">
-        <TrendingUp className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+      {/* Footer note */}
+      <div className="flex items-start gap-3 rounded-2xl p-4" style={{ backgroundColor: 'var(--color-brand-light)', border: '1px solid var(--color-border)' }}>
+        <TrendingUp className="h-5 w-5 shrink-0 mt-0.5" style={{ color: 'var(--color-brand)' }} />
         <div>
-          <p className="text-sm font-semibold text-amber-800">Reviews integration</p>
-          <p className="text-xs text-amber-700 mt-0.5">
-            Live review sync from patient appointments is in development. These reviews represent your expected review profile. Reply functionality and review request emails launch next sprint.
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-brand)' }}>Patient feedback</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-brand)' }}>
+            Reviews are submitted by verified patients after their appointments. Reply publicly to show your clinic's commitment to patient care.
           </p>
         </div>
       </div>

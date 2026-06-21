@@ -14,7 +14,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
+          <label
+            htmlFor={inputId}
+            className="text-[12px] font-medium uppercase tracking-wider"
+            style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-body)' }}
+          >
             {label}
           </label>
         )}
@@ -22,16 +26,32 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'h-10 w-full rounded-lg border bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400',
-            'focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent',
+            'h-10 w-full border px-3 text-[14px] transition-colors',
+            'focus:outline-none focus:ring-1',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            error ? 'border-red-400 focus:ring-red-400' : 'border-gray-300',
+            error
+              ? 'border-danger focus:ring-danger focus:border-danger'
+              : 'border-border focus:ring-brand focus:border-brand',
             className,
           )}
+          style={{
+            borderRadius: 4,
+            backgroundColor: 'var(--color-surface)',
+            color: 'var(--color-text-primary)',
+            fontFamily: 'var(--font-body)',
+          }}
           {...props}
         />
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
+        {error && (
+          <p className="text-[12px]" style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-body)' }}>
+            {error}
+          </p>
+        )}
+        {hint && !error && (
+          <p className="text-[12px]" style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-body)' }}>
+            {hint}
+          </p>
+        )}
       </div>
     )
   },

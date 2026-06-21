@@ -94,7 +94,6 @@ class Clinic(Base):
     )
     subscription_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     subscription_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255))
     mpesa_paybill: Mapped[Optional[str]] = mapped_column(String(20))
     settings: Mapped[dict] = mapped_column(JSONB, server_default="{}")
 

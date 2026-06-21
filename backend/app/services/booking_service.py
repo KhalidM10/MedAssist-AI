@@ -18,15 +18,18 @@ def is_slot_available(
     scheduled_at: datetime,
     duration_minutes: int = 30,
 ) -> bool:
-    end_time = scheduled_at + timedelta(minutes=duration_minutes)
+    slot_date = scheduled_at.date()
+    start_str = scheduled_at.strftime("%H:%M:%S")
+    end_str = (scheduled_at + timedelta(minutes=duration_minutes)).strftime("%H:%M:%S")
     conflict = (
         db.query(Appointment)
         .filter(
             Appointment.clinic_id == clinic_id,
             Appointment.doctor_id == doctor_id,
             Appointment.status.notin_([AppointmentStatus.CANCELLED]),
-            Appointment.scheduled_at < end_time,
-            Appointment.scheduled_at >= scheduled_at,
+            Appointment.appointment_date == slot_date,
+            Appointment.appointment_time >= start_str,
+            Appointment.appointment_time < end_str,
         )
         .first()
     )

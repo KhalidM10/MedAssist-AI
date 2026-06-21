@@ -54,11 +54,13 @@ async def book_appointment(
         if not doctor:
             raise HTTPException(status_code=404, detail="Doctor not found at this clinic")
 
+    time_str = data.appointment_time.strftime("%H:%M:%S")
+
     conflict = db.query(Appointment).filter(
         Appointment.clinic_id == data.clinic_id,
         Appointment.doctor_id == data.doctor_id,
         Appointment.appointment_date == data.appointment_date,
-        Appointment.appointment_time == data.appointment_time,
+        Appointment.appointment_time == time_str,
         Appointment.status.notin_([AppointmentStatus.CANCELLED]),
     ).first()
     if conflict:
@@ -76,7 +78,7 @@ async def book_appointment(
         clinic_id=data.clinic_id,
         doctor_id=data.doctor_id,
         appointment_date=data.appointment_date,
-        appointment_time=data.appointment_time,
+        appointment_time=time_str,
         reason=data.reason,
         amount_kes=data.amount_kes or 0.0,
     )
@@ -230,7 +232,10 @@ async def cancel_appointment(
     if appt.status == AppointmentStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Cannot cancel a completed appointment")
 
-    appt_dt = datetime.combine(appt.appointment_date, appt.appointment_time)
+    from datetime import time as time_type
+    t = appt.appointment_time
+    appt_time_obj = t if isinstance(t, time_type) else time_type.fromisoformat(str(t)[:8])
+    appt_dt = datetime.combine(appt.appointment_date, appt_time_obj)
     if appt_dt - datetime.now() < timedelta(hours=2):
         raise HTTPException(
             status_code=400,
