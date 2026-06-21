@@ -63,6 +63,7 @@ class User(Base):
     gender: Mapped[Optional[str]] = mapped_column(String(20))
     blood_type: Mapped[Optional[str]] = mapped_column(String(5))
     allergies: Mapped[Optional[List[str]]] = mapped_column(ARRAY(Text))
+    chronic_conditions: Mapped[Optional[List[str]]] = mapped_column(ARRAY(Text))
     emergency_contact: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     # Status

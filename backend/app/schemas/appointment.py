@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime, time
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from app.models.appointment import AppointmentStatus
 
@@ -12,8 +12,15 @@ class AppointmentCreate(BaseModel):
     doctor_id: Optional[uuid.UUID] = None
     appointment_date: date
     appointment_time: time
-    reason: Optional[str] = None
+    reason: str
     amount_kes: Optional[float] = 0.0
+
+    @field_validator("reason")
+    @classmethod
+    def reason_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Reason for visit cannot be empty")
+        return v.strip()
 
 
 class AppointmentUpdate(BaseModel):

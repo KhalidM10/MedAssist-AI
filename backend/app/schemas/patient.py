@@ -9,6 +9,7 @@ class PatientBase(BaseModel):
     full_name: str
     date_of_birth: Optional[date] = None
     gender: Optional[str] = None
+    blood_type: Optional[str] = None
     county: Optional[str] = None
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
@@ -24,6 +25,7 @@ class PatientUpdate(BaseModel):
     full_name: Optional[str] = None
     date_of_birth: Optional[date] = None
     gender: Optional[str] = None
+    blood_type: Optional[str] = None
     county: Optional[str] = None
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None

@@ -1,18 +1,27 @@
 import asyncio
+import logging
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import get_current_user, get_db
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.clinic import Clinic
 from app.models.doctor import Doctor
-from app.models.user import User
+from app.models.review import Review
+from app.models.user import User, UserRole
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, AppointmentUpdate
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+CLINIC_ROLES = {
+    UserRole.CLINIC_ADMIN, UserRole.CLINIC_DOCTOR,
+    UserRole.CLINIC_RECEPTIONIST, UserRole.CLINIC_PHARMACIST,
+}
 
 
 def _fetch(db: Session, appointment_id: str) -> Appointment:
@@ -56,14 +65,16 @@ async def book_appointment(
 
     time_str = data.appointment_time.strftime("%H:%M:%S")
 
-    conflict = db.query(Appointment).filter(
+    # Fix #9: conflict check scoped to doctor when specified, else any slot at the clinic
+    conflict_q = db.query(Appointment).filter(
         Appointment.clinic_id == data.clinic_id,
-        Appointment.doctor_id == data.doctor_id,
         Appointment.appointment_date == data.appointment_date,
         Appointment.appointment_time == time_str,
         Appointment.status.notin_([AppointmentStatus.CANCELLED]),
-    ).first()
-    if conflict:
+    )
+    if data.doctor_id:
+        conflict_q = conflict_q.filter(Appointment.doctor_id == data.doctor_id)
+    if conflict_q.first():
         raise HTTPException(
             status_code=409,
             detail="This slot was just booked. Please select a different time.",
@@ -86,7 +97,6 @@ async def book_appointment(
     db.commit()
     db.refresh(appointment)
 
-    # ── Post-booking notifications ────────────────────────────────────────────
     background_tasks.add_task(
         _post_booking_notifications,
         appointment_id=str(appointment.id),
@@ -108,17 +118,13 @@ async def _post_booking_notifications(
     appt_date: str,
     appt_time: str,
 ) -> None:
-    """Fire all post-booking side-effects without blocking the API response."""
     from app.database import SessionLocal
     from app.services.notification_service import notify, notify_clinic
     from app.services.sms import sms_appointment_confirmed
     from app.services.email import email_appointment_confirmed
-    from app.tasks.sms_tasks import send_sms_task
-    from app.tasks.email_tasks import send_email_task
 
     db = SessionLocal()
     try:
-        # Re-fetch with the new session so we don't share the request session
         appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
         if not appt:
             return
@@ -129,52 +135,53 @@ async def _post_booking_notifications(
         clinic_addr = clinic.address if clinic else ""
         clinic_phone = clinic.phone if clinic else ""
 
-        # 1. In-app notification for patient
-        sms_body = sms_appointment_confirmed(
-            patient.full_name, doctor_name, clinic_name, appt_date, appt_time, ref
-        )
-        _, email_html = email_appointment_confirmed(
-            patient_name=patient.full_name,
-            doctor_name=doctor_name,
-            clinic_name=clinic_name,
-            clinic_address=clinic_addr,
-            clinic_phone=clinic_phone,
-            date=appt_date,
-            time=appt_time,
-            reference=ref,
-            amount_kes=float(appt.amount_kes or 0),
-            cancel_url=f"https://medassist.co.ke/appointments",
-        )
-        await notify(
-            db, patient,
-            type="appointment_booked",
-            title="Appointment Booked",
-            body=f"Your appointment at {clinic_name} on {appt_date} at {appt_time} is pending confirmation.",
-            data={
-                "appointment_id": appointment_id,
-                "reference": ref,
-                "email_subject": f"Appointment Booked — {appt_date} at {appt_time}",
-                "email_html": email_html,
-            },
-            channels=["in_app", "sms", "email"],
-        )
-        db.commit()
+        try:
+            _, email_html = email_appointment_confirmed(
+                patient_name=patient.full_name,
+                doctor_name=doctor_name,
+                clinic_name=clinic_name,
+                clinic_address=clinic_addr,
+                clinic_phone=clinic_phone,
+                date=appt_date,
+                time=appt_time,
+                reference=ref,
+                amount_kes=float(appt.amount_kes or 0),
+                cancel_url="https://medassist.co.ke/appointments",
+            )
+            await notify(
+                db, patient,
+                type="appointment_booked",
+                title="Appointment Booked",
+                body=f"Your appointment at {clinic_name} on {appt_date} at {appt_time} is pending confirmation.",
+                data={
+                    "appointment_id": appointment_id,
+                    "reference": ref,
+                    "email_subject": f"Appointment Booked — {appt_date} at {appt_time}",
+                    "email_html": email_html,
+                },
+                channels=["in_app", "sms", "email"],
+            )
+            db.commit()
+        except Exception:
+            logger.exception("Failed to send patient booking notification for appointment %s", appointment_id)
 
-        # 2. Real-time clinic dashboard notification
-        await notify_clinic(
-            db,
-            clinic_id=str(clinic.id),
-            type="new_appointment",
-            title="New Appointment",
-            body=f"{patient.full_name} booked for {appt_date} at {appt_time}",
-            data={
-                "appointment_id": appointment_id,
-                "patient_name": patient.full_name,
-                "date": appt_date,
-                "time": appt_time,
-                "reference": ref,
-            },
-        )
+        try:
+            await notify_clinic(
+                db,
+                clinic_id=str(clinic.id),
+                type="new_appointment",
+                title="New Appointment",
+                body=f"{patient.full_name} booked for {appt_date} at {appt_time}",
+                data={
+                    "appointment_id": appointment_id,
+                    "patient_name": patient.full_name,
+                    "date": appt_date,
+                    "time": appt_time,
+                    "reference": ref,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to send clinic notification for appointment %s", appointment_id)
     finally:
         db.close()
 
@@ -214,7 +221,15 @@ def get_appointment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return _fetch(db, appointment_id)
+    appt = _fetch(db, appointment_id)
+    # Fix #3: ownership check — patients can only see their own; clinic staff only their clinic's
+    if current_user.role == UserRole.PATIENT:
+        if str(appt.patient_id) != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Not your appointment")
+    elif current_user.role in CLINIC_ROLES:
+        if str(appt.clinic_id) != str(current_user.clinic_id):
+            raise HTTPException(status_code=403, detail="Appointment not in your clinic")
+    return appt
 
 
 @router.patch("/{appointment_id}/cancel", response_model=AppointmentResponse)
@@ -268,29 +283,84 @@ async def _post_cancel_notifications(
 ) -> None:
     from app.database import SessionLocal
     from app.services.notification_service import notify, notify_clinic
-    from app.services.sms import sms_appointment_cancelled
 
     db = SessionLocal()
     try:
-        sms_body = sms_appointment_cancelled(patient.full_name, reference)
-        await notify(
-            db, patient,
-            type="appointment_cancelled",
-            title="Appointment Cancelled",
-            body=f"Your appointment (Ref: {reference}) has been cancelled.",
-            data={"appointment_id": appointment_id, "reference": reference},
-            channels=["in_app", "sms"],
-        )
-        db.commit()
-
-        if clinic_id:
-            await notify_clinic(
-                db,
-                clinic_id=clinic_id,
+        try:
+            await notify(
+                db, patient,
                 type="appointment_cancelled",
                 title="Appointment Cancelled",
-                body=f"Patient cancelled appointment on {appt_date} at {appt_time}",
+                body=f"Your appointment (Ref: {reference}) has been cancelled.",
                 data={"appointment_id": appointment_id, "reference": reference},
+                channels=["in_app", "sms"],
             )
+            db.commit()
+        except Exception:
+            logger.exception("Failed to send cancellation notification for appointment %s", appointment_id)
+
+        if clinic_id:
+            try:
+                await notify_clinic(
+                    db,
+                    clinic_id=clinic_id,
+                    type="appointment_cancelled",
+                    title="Appointment Cancelled",
+                    body=f"Patient cancelled appointment on {appt_date} at {appt_time}",
+                    data={"appointment_id": appointment_id, "reference": reference},
+                )
+            except Exception:
+                logger.exception("Failed to send clinic cancellation notification for appointment %s", appointment_id)
     finally:
         db.close()
+
+
+# ── Review submission ─────────────────────────────────────────────────────────
+
+class ReviewCreate(BaseModel):
+    rating: int
+    title: Optional[str] = None
+    body: Optional[str] = None
+
+
+@router.post("/{appointment_id}/review", status_code=201)
+def submit_review(
+    appointment_id: str,
+    data: ReviewCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not 1 <= data.rating <= 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+
+    appt = _fetch(db, appointment_id)
+    if str(appt.patient_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not your appointment")
+    if appt.status != AppointmentStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="You can only review a completed appointment")
+
+    existing = db.query(Review).filter(Review.appointment_id == appt.id).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="You have already reviewed this appointment")
+
+    review = Review(
+        clinic_id=appt.clinic_id,
+        patient_id=current_user.id,
+        doctor_id=appt.doctor_id,
+        appointment_id=appt.id,
+        rating=data.rating,
+        title=data.title,
+        body=data.body,
+        is_verified=True,
+        is_published=True,
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return {
+        "id": str(review.id),
+        "rating": review.rating,
+        "title": review.title,
+        "body": review.body,
+        "created_at": review.created_at.isoformat(),
+    }

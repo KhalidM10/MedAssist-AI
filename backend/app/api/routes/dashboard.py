@@ -48,6 +48,16 @@ def _get_clinic(current_user: User, db: Session) -> Clinic:
     return clinic
 
 
+def _require_active_subscription(clinic: Clinic) -> None:
+    """Fix #5: block access to premium features when subscription has lapsed."""
+    if clinic.subscription_expires_at and clinic.subscription_plan in ("pro", "enterprise"):
+        if datetime.now(timezone.utc) > clinic.subscription_expires_at:
+            raise HTTPException(
+                status_code=402,
+                detail="Your subscription has expired. Please renew to continue using this feature.",
+            )
+
+
 def _subtract_months(d: date, months: int) -> date:
     month = d.month - months
     year = d.year + (month - 1) // 12
@@ -156,6 +166,7 @@ def clinic_analytics(
     db: Session = Depends(get_db),
 ):
     clinic = _get_clinic(current_user, db)
+    _require_active_subscription(clinic)
     today = date.today()
 
     # ── Weekly appointment trend (last 8 weeks) — real data only ─────────────
@@ -541,7 +552,8 @@ def upgrade_subscription(
         raise HTTPException(status_code=400, detail=f"Invalid plan: {body.plan}. Must be one of: {', '.join(VALID_PLANS)}")
 
     import re
-    if not re.match(r"^\+?2547\d{8}$|^07\d{8}$|^7\d{8}$", body.mpesa_phone.replace(" ", "")):
+    cleaned_phone = re.sub(r"[\s\-]", "", body.mpesa_phone)
+    if not re.match(r"^\+?2547\d{8}$|^07\d{8}$|^7\d{8}$", cleaned_phone):
         raise HTTPException(status_code=422, detail="Enter a valid Safaricom M-Pesa number (e.g. 0712 345 678)")
 
     clinic = _get_clinic(current_user, db)

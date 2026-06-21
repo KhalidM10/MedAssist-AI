@@ -225,13 +225,20 @@ def triage_stats(
 
 # ── Clinics ────────────────────────────────────────────────────────────────────
 
+_ALLOWED_CLINIC_STATUSES = {"pending", "approved", "rejected", "suspended"}
+
+
 @router.get("/clinics")
 def list_clinics(
     q: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),   # pending | approved | rejected | suspended
+    status: Optional[str] = Query(None),
     current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
+    # Fix #14: validate status filter
+    if status and status not in _ALLOWED_CLINIC_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(_ALLOWED_CLINIC_STATUSES)}")
+
     query = db.query(Clinic)
     if q:
         query = query.filter(
@@ -241,19 +248,43 @@ def list_clinics(
         query = query.filter(Clinic.approval_status == status)
     clinics = query.order_by(Clinic.created_at.desc()).all()
 
+    if not clinics:
+        return []
+
+    clinic_ids = [c.id for c in clinics]
+
+    # Fix #7: batch queries instead of N+1
+    owners_raw = (
+        db.query(User.clinic_id, User)
+        .filter(User.clinic_id.in_(clinic_ids), User.role == UserRole.CLINIC_ADMIN)
+        .order_by(User.created_at)
+        .all()
+    )
+    owners: dict = {}
+    for clinic_id, user in owners_raw:
+        if clinic_id not in owners:
+            owners[clinic_id] = user
+
+    doc_counts = dict(
+        db.query(Doctor.clinic_id, func.count(Doctor.id))
+        .filter(Doctor.clinic_id.in_(clinic_ids))
+        .group_by(Doctor.clinic_id)
+        .all()
+    )
+
+    rev_map = dict(
+        db.query(Appointment.clinic_id, func.coalesce(func.sum(Appointment.amount_kes), 0))
+        .filter(
+            Appointment.clinic_id.in_(clinic_ids),
+            Appointment.status == AppointmentStatus.COMPLETED,
+        )
+        .group_by(Appointment.clinic_id)
+        .all()
+    )
+
     result = []
     for c in clinics:
-        owner = (
-            db.query(User)
-            .filter(User.clinic_id == c.id, User.role == UserRole.CLINIC_ADMIN)
-            .order_by(User.created_at)
-            .first()
-        )
-        doc_count = db.query(func.count(Doctor.id)).filter(Doctor.clinic_id == c.id).scalar() or 0
-        total_rev = db.query(func.coalesce(func.sum(Appointment.amount_kes), 0)).filter(
-            Appointment.clinic_id == c.id,
-            Appointment.status == AppointmentStatus.COMPLETED,
-        ).scalar() or 0
+        owner = owners.get(c.id)
         result.append({
             "id": str(c.id),
             "name": c.name,
@@ -276,8 +307,8 @@ def list_clinics(
             "business_registration_number": c.business_registration_number,
             "year_established": c.year_established,
             "mrr_kes": MRR_BY_PLAN.get(c.subscription_plan, 0),
-            "total_revenue_kes": float(total_rev),
-            "doctor_count": doc_count,
+            "total_revenue_kes": float(rev_map.get(c.id, 0)),
+            "doctor_count": doc_counts.get(c.id, 0),
             "specialties": c.specialties or [],
             "documents": c.documents or [],
             "created_at": c.created_at.isoformat(),
@@ -510,19 +541,38 @@ def list_users(
 
     users = query.order_by(User.created_at.desc()).limit(limit).all()
 
+    if not users:
+        return []
+
+    # Fix #8: batch aggregate queries instead of N+1
+    user_ids = [u.id for u in users]
+    now_utc = datetime.now(timezone.utc)
+
+    session_counts = dict(
+        db.query(UserSession.user_id, func.count(UserSession.id))
+        .filter(
+            UserSession.user_id.in_(user_ids),
+            UserSession.is_active == True,
+            UserSession.expires_at > now_utc,
+        )
+        .group_by(UserSession.user_id)
+        .all()
+    )
+    appt_counts = dict(
+        db.query(Appointment.patient_id, func.count(Appointment.id))
+        .filter(Appointment.patient_id.in_(user_ids))
+        .group_by(Appointment.patient_id)
+        .all()
+    )
+    order_counts = dict(
+        db.query(Order.patient_id, func.count(Order.id))
+        .filter(Order.patient_id.in_(user_ids))
+        .group_by(Order.patient_id)
+        .all()
+    )
+
     result = []
     for u in users:
-        session_count = db.query(func.count(UserSession.id)).filter(
-            UserSession.user_id == u.id,
-            UserSession.is_active == True,
-            UserSession.expires_at > datetime.now(timezone.utc),
-        ).scalar() or 0
-        appt_count = db.query(func.count(Appointment.id)).filter(
-            Appointment.patient_id == u.id
-        ).scalar() or 0
-        order_count = db.query(func.count(Order.id)).filter(
-            Order.patient_id == u.id
-        ).scalar() or 0
         clinic_name = u.clinic.name if u.clinic else None
         result.append({
             "id": str(u.id),
@@ -539,9 +589,9 @@ def list_users(
             "avatar_url": u.avatar_url,
             "created_at": u.created_at.isoformat(),
             "last_login": u.last_login_at.isoformat() if u.last_login_at else None,
-            "session_count": session_count,
-            "total_appointments": appt_count,
-            "total_orders": order_count,
+            "session_count": session_counts.get(u.id, 0),
+            "total_appointments": appt_counts.get(u.id, 0),
+            "total_orders": order_counts.get(u.id, 0),
             "warning_count": u.warning_count or 0,
             "ban_reason": u.ban_reason,
             "banned_at": u.banned_at.isoformat() if u.banned_at else None,
@@ -672,6 +722,8 @@ def delete_user(
     db: Session = Depends(get_db),
 ):
     import secrets as _secrets
+    from app.models.review import Review
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -690,12 +742,16 @@ def delete_user(
     user.gender = None
     user.blood_type = None
     user.allergies = None
+    user.chronic_conditions = None
     user.emergency_contact = None
     user.two_factor_enabled = False
     user.two_factor_secret = None
     user.password_reset_token = None
     user.email_verify_token = None
     user.is_active = False
+
+    # Fix #15: unpublish reviews so deleted user's content doesn't appear publicly
+    db.query(Review).filter(Review.patient_id == user_id).update({"is_published": False})
 
     # Force-logout all sessions
     db.query(UserSession).filter(UserSession.user_id == user_id).update({"is_active": False})
