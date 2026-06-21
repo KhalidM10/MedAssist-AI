@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.core.deps import get_current_user, get_db
 from app.models.user import User, UserRole
 from app.models.order import Order, OrderStatus
@@ -69,7 +70,7 @@ def create_order(
     for item in data.items:
         product = db.query(Product).filter(
             Product.id == item.product_id, Product.is_active == True
-        ).first()
+        ).with_for_update().first()
         if not product:
             raise HTTPException(status_code=404, detail=f"Product not found: {item.product_id}")
         if product.requires_prescription:
@@ -90,7 +91,8 @@ def create_order(
         raise HTTPException(status_code=400, detail="No valid products")
 
     subtotal = sum(p.price_kes * qty for p, qty in resolved)
-    delivery_fee = 200.0 if str(data.delivery_method) == "delivery" else 0.0
+    _settings = get_settings()
+    delivery_fee = float(_settings.delivery_fee_kes) if str(data.delivery_method) == "delivery" else 0.0
 
     items_snapshot = [
         {
@@ -121,6 +123,50 @@ def create_order(
 
     db.commit()
     return OrderResponse.model_validate(_fetch_order(str(order.id), db))
+
+
+@router.post("/{order_id}/initiate-payment", status_code=202)
+async def initiate_order_payment(
+    order_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Trigger M-Pesa STK push for an order."""
+    order = _fetch_order(order_id, db)
+    if str(order.patient_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not your order")
+    if order.payment_status == "paid":
+        raise HTTPException(status_code=400, detail="Order already paid")
+    if str(order.payment_method) != "mpesa":
+        raise HTTPException(status_code=400, detail="Order payment method is not M-Pesa")
+    if not current_user.phone:
+        raise HTTPException(status_code=400, detail="No phone number on your account")
+
+    from app.services.mpesa import stk_push
+    _settings = get_settings()
+    reference = f"MO-{str(order.id).upper().replace('-', '')[:8]}"
+    callback_url = f"{_settings.mpesa_callback_url}/api/v1/webhooks/mpesa/stk-callback"
+
+    try:
+        result = await stk_push(
+            phone=current_user.phone,
+            amount=int(order.total_kes),
+            account_reference=reference,
+            description=f"Order {reference}",
+            callback_url=callback_url,
+        )
+    except Exception:
+        raise HTTPException(status_code=502, detail="Payment initiation failed. Please try again.")
+
+    checkout_request_id = result.get("CheckoutRequestID")
+    if checkout_request_id:
+        order.mpesa_transaction_id = checkout_request_id
+        db.commit()
+
+    return {
+        "message": f"M-Pesa prompt sent to {current_user.phone}. Enter your PIN to confirm.",
+        "checkout_request_id": checkout_request_id,
+    }
 
 
 @router.patch("/{order_id}/status", response_model=OrderResponse)

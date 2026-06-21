@@ -116,6 +116,8 @@ function AddDoctorModal({ clinicId, onClose }: { clinicId: string; onClose: () =
       api.post(`/clinics/${clinicId}/doctors`, { ...data, available_days: selectedDays }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clinic-doctors'] })
+      qc.invalidateQueries({ queryKey: ['booking-slots'] })
+      qc.invalidateQueries({ queryKey: ['clinic-dashboard'] })
       onClose()
     },
   })

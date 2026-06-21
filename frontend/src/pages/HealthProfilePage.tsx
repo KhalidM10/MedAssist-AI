@@ -211,6 +211,7 @@ export function HealthProfilePage() {
     setCounty(profile.county ?? '')
     setAllergies(profile.allergies ?? [])
     setConditions(profile.chronic_conditions ?? [])
+    setBloodType(profile.blood_type ?? 'Unknown')
     setEcName(profile.emergency_contact_name ?? '')
     setEcPhone(profile.emergency_contact_phone ?? '')
   }, [profile])
@@ -232,7 +233,7 @@ export function HealthProfilePage() {
   }
 
   async function saveHealth() {
-    await saveProfile({ allergies, chronic_conditions: conditions })
+    await saveProfile({ allergies, chronic_conditions: conditions, blood_type: bloodType === 'Unknown' ? null : bloodType })
     setEditHealth(false)
     showSaved('Health info saved')
   }
@@ -258,7 +259,12 @@ export function HealthProfilePage() {
     URL.revokeObjectURL(url)
   }
 
-  function handleDeleteAccount() {
+  async function handleDeleteAccount() {
+    try {
+      await api.delete('/patients/me')
+    } catch {
+      // Proceed with logout even if server call fails
+    }
     logout()
     navigate('/')
   }

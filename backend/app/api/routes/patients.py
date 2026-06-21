@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
@@ -66,3 +66,31 @@ def update_my_profile(
     db.commit()
     db.refresh(current_user)
     return _patient_response(current_user)
+
+
+@router.delete("/me", status_code=204)
+def delete_my_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """GDPR-compliant self-deletion: anonymise PII, preserve FK integrity."""
+    anonymised_email = f"deleted_{current_user.id}@medassist.deleted"
+    current_user.full_name = "Deleted User"
+    current_user.email = anonymised_email
+    current_user.phone = None
+    current_user.password_hash = ""
+    current_user.date_of_birth = None
+    current_user.gender = None
+    current_user.county = None
+    current_user.allergies = None
+    current_user.chronic_conditions = None
+    current_user.emergency_contact = None
+    current_user.two_factor_secret = None
+    current_user.two_factor_enabled = False
+    current_user.is_active = False
+
+    from app.models.review import Review
+    db.query(Review).filter(Review.patient_id == current_user.id).update({"is_published": False})
+
+    db.commit()
+    return Response(status_code=204)

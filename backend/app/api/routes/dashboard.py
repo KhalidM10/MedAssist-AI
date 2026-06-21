@@ -524,6 +524,66 @@ def clinic_orders(
     ]
 
 
+# ── Patients (clinic view) ────────────────────────────────────────────────────
+
+@router.get("/patients")
+def clinic_patients(
+    search: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """Returns unique patients who have had at least one appointment at this clinic."""
+    clinic = _get_clinic(current_user, db)
+
+    patient_ids = (
+        db.query(Appointment.patient_id)
+        .filter(Appointment.clinic_id == clinic.id)
+        .distinct()
+        .subquery()
+    )
+
+    q = db.query(User).filter(User.id.in_(patient_ids))
+    if search:
+        q = q.filter(User.full_name.ilike(f"%{search}%"))
+    patients = q.order_by(User.full_name).limit(limit).all()
+
+    patient_id_list = [p.id for p in patients]
+
+    appt_counts = dict(
+        db.query(Appointment.patient_id, func.count(Appointment.id))
+        .filter(
+            Appointment.clinic_id == clinic.id,
+            Appointment.patient_id.in_(patient_id_list),
+        )
+        .group_by(Appointment.patient_id)
+        .all()
+    )
+
+    last_seen = dict(
+        db.query(Appointment.patient_id, func.max(Appointment.appointment_date))
+        .filter(
+            Appointment.clinic_id == clinic.id,
+            Appointment.patient_id.in_(patient_id_list),
+        )
+        .group_by(Appointment.patient_id)
+        .all()
+    )
+
+    return [
+        {
+            "id": str(p.id),
+            "full_name": p.full_name,
+            "email": p.email,
+            "phone": p.phone,
+            "county": p.county,
+            "appointment_count": appt_counts.get(p.id, 0),
+            "last_seen": str(last_seen[p.id]) if last_seen.get(p.id) else None,
+        }
+        for p in patients
+    ]
+
+
 # ── Subscription ─────────────────────────────────────────────────────────────
 
 @router.get("/subscription")

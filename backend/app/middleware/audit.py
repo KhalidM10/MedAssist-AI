@@ -37,11 +37,14 @@ class AuditMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
         request.state.start_time = start
         request.state.client_ip = client_ip
+        request.state.method = request.method
+        request.state.path = request.url.path
 
         response = await call_next(request)
 
         duration_ms = int((time.monotonic() - start) * 1000)
         request.state.duration_ms = duration_ms
+        request.state.status_code = response.status_code
 
         # Attach X-Request-ID so clients can correlate with support tickets
         response.headers["X-Request-ID"] = str(request_id)

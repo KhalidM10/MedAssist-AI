@@ -7,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
+from app.config import get_settings
 from app.core.deps import get_current_user, get_db
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.clinic import Clinic
@@ -146,7 +147,7 @@ async def _post_booking_notifications(
                 time=appt_time,
                 reference=ref,
                 amount_kes=float(appt.amount_kes or 0),
-                cancel_url="https://medassist.co.ke/appointments",
+                cancel_url=f"{get_settings().app_base_url}/appointments",
             )
             await notify(
                 db, patient,

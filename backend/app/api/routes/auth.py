@@ -9,12 +9,17 @@ Production-grade authentication routes.
 - Password reset flow
 """
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.config import get_settings
 from app.core.audit import log_auth, log_data_change, log_event
@@ -52,6 +57,7 @@ from app.services.totp_service import (
 )
 
 router = APIRouter()
+_limiter = Limiter(key_func=get_remote_address)
 settings = get_settings()
 
 
@@ -157,6 +163,7 @@ async def register(data: RegisterRequest, request: Request, response: Response, 
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
+@_limiter.limit("10/minute")
 async def login(data: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
 
@@ -326,21 +333,36 @@ def get_me(
 # ── Password reset ────────────────────────────────────────────────────────────
 
 @router.post("/forgot-password")
-def forgot_password(email: str, db: Session = Depends(get_db)):
+@_limiter.limit("5/minute")
+def forgot_password(email: str, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
     if user:
         token = str(uuid.uuid4())
         user.password_reset_token = token
         user.password_reset_expires = datetime.utcnow() + timedelta(hours=1)
         db.commit()
-        # TODO: send email via SendGrid with reset link
-        # email_service.send_password_reset(user.email, token)
+
+        reset_url = f"{settings.app_base_url}/reset-password?token={token}"
+        client_ip = getattr(request.state, "client_ip", "Unknown")
+        try:
+            from app.tasks.email_tasks import send_email_task
+            from app.services.email import email_password_reset
+            subject, html = email_password_reset(
+                name=user.full_name,
+                reset_url=reset_url,
+                ip_address=client_ip,
+                city="Kenya",
+            )
+            send_email_task.delay(user.email, user.full_name, subject, html)
+        except Exception:
+            logger.exception("Failed to send password reset email to %s", user.email)
     # Always return same response to prevent email enumeration
     return {"detail": "If that email exists, a reset link has been sent."}
 
 
 @router.post("/reset-password")
-def reset_password(token: str, new_password: str, db: Session = Depends(get_db)):
+@_limiter.limit("5/minute")
+def reset_password(token: str, new_password: str, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         User.password_reset_token == token,
         User.password_reset_expires > datetime.utcnow(),

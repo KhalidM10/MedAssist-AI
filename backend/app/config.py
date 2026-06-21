@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     mpesa_environment: str = "sandbox"
     mpesa_callback_url: str = ""
 
+    # ── App ────────────────────────────────────────────────────────────────────
+    app_base_url: str = "https://medassist.co.ke"
+    delivery_fee_kes: int = 200
+
     # ── Sentry ─────────────────────────────────────────────────────────────────
     sentry_dsn: str = ""
 

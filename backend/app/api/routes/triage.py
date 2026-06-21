@@ -1,9 +1,12 @@
+import logging
 import time
 import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.core.deps import get_db, get_optional_user
 from app.models.triage import SymptomLog, TriageSession
@@ -106,6 +109,7 @@ def analyze_symptoms(
         db_session_id = str(session.id)
         saved = True
     except Exception:
+        logger.exception("Failed to persist triage session for user %s", getattr(current_user, "id", "anonymous"))
         db.rollback()
 
     return TriageAnalyzeResponse(

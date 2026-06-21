@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.models.appointment import Appointment, AppointmentStatus
+from app.models.order import Order
 from app.models.user import User
 from app.services.mpesa import stk_push
 from app.config import get_settings
@@ -93,31 +94,43 @@ async def mpesa_stk_callback(request: Request, db: Session = Depends(get_db)):
         logger.warning("M-Pesa callback missing CheckoutRequestID: %s", payload)
         return {"ResultCode": 0, "ResultDesc": "Accepted"}
 
+    metadata_items = callback.get("CallbackMetadata", {}).get("Item", [])
+    meta = {item["Name"]: item.get("Value") for item in metadata_items}
+    receipt = meta.get("MpesaReceiptNumber")
+
+    # Try to match appointment first, then order
     appt = db.query(Appointment).filter(
         Appointment.mpesa_transaction_id == checkout_request_id
     ).first()
 
+    order = None
     if not appt:
-        logger.warning("No appointment found for CheckoutRequestID %s", checkout_request_id)
+        order = db.query(Order).filter(
+            Order.mpesa_transaction_id == checkout_request_id
+        ).first()
+
+    if not appt and not order:
+        logger.warning("No appointment or order found for CheckoutRequestID %s", checkout_request_id)
         return {"ResultCode": 0, "ResultDesc": "Accepted"}
 
     if result_code == 0:
-        # Successful payment
-        metadata_items = callback.get("CallbackMetadata", {}).get("Item", [])
-        meta = {item["Name"]: item.get("Value") for item in metadata_items}
-
-        appt.payment_status = "paid"
-        appt.payment_method = "mpesa"
-        appt.mpesa_receipt_number = meta.get("MpesaReceiptNumber")
-        db.commit()
-        logger.info(
-            "Payment confirmed for appointment %s — receipt %s",
-            appt.id, appt.mpesa_receipt_number,
-        )
+        if appt:
+            appt.payment_status = "paid"
+            appt.payment_method = "mpesa"
+            appt.mpesa_receipt_number = receipt
+            db.commit()
+            logger.info("Payment confirmed for appointment %s — receipt %s", appt.id, receipt)
+        elif order:
+            order.payment_status = "paid"
+            order.mpesa_receipt_number = receipt
+            db.commit()
+            logger.info("Payment confirmed for order %s — receipt %s", order.id, receipt)
     else:
+        target_id = appt.id if appt else order.id
+        target_type = "appointment" if appt else "order"
         logger.info(
-            "M-Pesa STK failed for appointment %s — ResultCode %s: %s",
-            appt.id, result_code, callback.get("ResultDesc"),
+            "M-Pesa STK failed for %s %s — ResultCode %s: %s",
+            target_type, target_id, result_code, callback.get("ResultDesc"),
         )
 
     return {"ResultCode": 0, "ResultDesc": "Accepted"}

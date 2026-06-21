@@ -53,7 +53,7 @@ def _apply_filters(
     if resource_type:
         q = q.filter(AuditLog.resource_type == resource_type)
     if ip_address:
-        q = q.filter(AuditLog.ip_address.cast(db.bind.dialect.type_descriptor(type(None)).__class__).cast(None).contains(ip_address) if False else AuditLog.ip_address.op("::text").like(f"%{ip_address}%"))
+        q = q.filter(AuditLog.ip_address.op("::text").like(f"%{ip_address}%"))
     if date_from:
         q = q.filter(AuditLog.created_at >= date_from)
     if date_to:
@@ -68,7 +68,7 @@ def _apply_filters(
 @router.get("", response_model=AuditLogPage)
 def list_audit_logs(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=100),
     action: Optional[str] = Query(None),
     status: Optional[str] = Query(None, pattern="^(success|failure|blocked)$"),
     user_email: Optional[str] = Query(None),
@@ -153,7 +153,7 @@ def audit_stats(
 @router.get("/high-risk", response_model=AuditLogPage)
 def high_risk_events(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=100),
     hours: int = Query(24, ge=1, le=168),
     current_user: User = Depends(require_permission("audit:read:all")),
     db: Session = Depends(get_db),
