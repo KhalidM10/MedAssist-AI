@@ -110,22 +110,20 @@ export function AdminClinicReviewPage() {
     enabled: !!id,
   })
 
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['admin-clinic-detail', id] })
+    qc.invalidateQueries({ queryKey: ['admin-clinics'] })
+    qc.invalidateQueries({ queryKey: ['admin-platform-stats'] })
+  }
+
   const approve = useMutation({
     mutationFn: () => api.post(`/admin/clinics/${id}/approve`, { notes: approveNotes || undefined }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-clinic-detail', id] })
-      qc.invalidateQueries({ queryKey: ['admin-clinics'] })
-      setActionDone('approved')
-    },
+    onSuccess: () => { invalidateAll(); setActionDone('approved') },
   })
 
   const reject = useMutation({
     mutationFn: () => api.post(`/admin/clinics/${id}/reject`, { reason: rejectReason }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-clinic-detail', id] })
-      qc.invalidateQueries({ queryKey: ['admin-clinics'] })
-      setActionDone('rejected')
-    },
+    onSuccess: () => { invalidateAll(); setActionDone('rejected') },
   })
 
   if (isLoading) {

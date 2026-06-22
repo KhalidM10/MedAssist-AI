@@ -304,15 +304,20 @@ export function AdminClinicsPage() {
     staleTime: 30_000,
   })
 
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['admin-clinics'] })
+    qc.invalidateQueries({ queryKey: ['admin-platform-stats'] })
+  }
+
   const suspend = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       api.post(`/admin/clinics/${id}/suspend`, { reason: reason ?? 'Admin action' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-clinics'] }); setSuspendTarget(null) },
+    onSuccess: () => { invalidateAll(); setSuspendTarget(null) },
   })
 
   const reactivate = useMutation({
     mutationFn: (id: string) => api.post(`/admin/clinics/${id}/reactivate`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-clinics'] }); setReactivateTarget(null) },
+    onSuccess: () => { invalidateAll(); setReactivateTarget(null) },
   })
 
   const filtered = clinics.filter(c =>

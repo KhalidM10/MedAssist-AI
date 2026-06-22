@@ -81,8 +81,10 @@ def platform_stats(
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
 
-    total_users      = db.query(func.count(User.id)).scalar() or 0
-    total_clinics    = db.query(func.count(Clinic.id)).scalar() or 0
+    total_users      = db.query(func.count(User.id)).filter(
+        User.is_active == True, ~User.email.like("%@deleted.invalid")
+    ).scalar() or 0
+    total_clinics    = db.query(func.count(Clinic.id)).filter(Clinic.is_active == True).scalar() or 0
     verified_clinics = db.query(func.count(Clinic.id)).filter(
         Clinic.approval_status == "approved", Clinic.is_active == True
     ).scalar() or 0

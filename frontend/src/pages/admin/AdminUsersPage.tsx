@@ -50,14 +50,19 @@ function UserPanel({ user, onClose }: { user: AdminUser; onClose: () => void }) 
   const [showImpersonate, setShowImpersonate] = useState(false)
   const [newRole, setNewRole] = useState(user.role)
 
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['admin-users'] })
+    qc.invalidateQueries({ queryKey: ['admin-platform-stats'] })
+  }
+
   const forceLogout = useMutation({
     mutationFn: () => api.post(`/admin/users/${user.id}/force-logout`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    onSuccess: invalidateAll,
   })
 
   const toggleLock = useMutation({
     mutationFn: () => api.post(`/admin/users/${user.id}/${user.is_active ? 'lock' : 'unlock'}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    onSuccess: invalidateAll,
   })
 
   const resetPw = useMutation({
@@ -66,12 +71,12 @@ function UserPanel({ user, onClose }: { user: AdminUser; onClose: () => void }) 
 
   const changeRole = useMutation({
     mutationFn: (role: string) => api.patch(`/admin/users/${user.id}/role`, { role }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    onSuccess: invalidateAll,
   })
 
   const deleteUser = useMutation({
     mutationFn: () => api.delete(`/admin/users/${user.id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-users'] }); onClose() },
+    onSuccess: () => { invalidateAll(); onClose() },
   })
 
   const [warnReason, setWarnReason] = useState('')
@@ -81,12 +86,12 @@ function UserPanel({ user, onClose }: { user: AdminUser; onClose: () => void }) 
 
   const warnUser = useMutation({
     mutationFn: () => api.post(`/admin/users/${user.id}/warn`, { reason: warnReason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-users'] }); setShowWarn(false); setWarnReason('') },
+    onSuccess: () => { invalidateAll(); setShowWarn(false); setWarnReason('') },
   })
 
   const banUser = useMutation({
     mutationFn: () => api.post(`/admin/users/${user.id}/ban`, { reason: banReason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-users'] }); setShowBan(false); setBanReason('') },
+    onSuccess: () => { invalidateAll(); setShowBan(false); setBanReason('') },
   })
 
   const rs = ROLE_STYLE[user.role] ?? ROLE_STYLE.patient
