@@ -11,7 +11,7 @@ Production-grade authentication routes.
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
@@ -114,6 +114,7 @@ async def _apply_backoff(attempts: int) -> None:
 # ── Register ──────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@_limiter.limit("5/minute")
 async def register(data: RegisterRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     errors = validate_password(data.password)
     if errors:
@@ -175,7 +176,7 @@ async def login(data: LoginRequest, request: Request, response: Response, db: Se
     await _apply_backoff(user.failed_login_attempts or 0)
 
     # Check lockout
-    if user.locked_until and user.locked_until > datetime.utcnow().replace(tzinfo=user.locked_until.tzinfo):
+    if user.locked_until and datetime.now(timezone.utc) < user.locked_until:
         log_event(db, action="auth.login_blocked", resource_type="user",
                   resource_id=str(user.id), status="blocked", request=request,
                   failure_reason="account_locked")
@@ -186,7 +187,7 @@ async def login(data: LoginRequest, request: Request, response: Response, db: Se
     if not verify_password(data.password, user.password_hash):
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
         if user.failed_login_attempts >= settings.max_login_attempts:
-            user.locked_until = datetime.utcnow() + timedelta(minutes=settings.lockout_minutes)
+            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=settings.lockout_minutes)
 
         log_auth(db, action="auth.login_failed", user=user, request=request, success=False,
                  failure_reason="wrong_password",
@@ -216,7 +217,7 @@ async def login(data: LoginRequest, request: Request, response: Response, db: Se
     failed_before = user.failed_login_attempts or 0
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = datetime.now(timezone.utc)
 
     state = request.state.__dict__
     ip = state.get("client_ip", "0.0.0.0")
@@ -300,8 +301,9 @@ def logout(
 ):
     if access_token:
         from app.models.audit import UserSession
+        from app.services.session_service import _hash_token
         s = db.query(UserSession).filter(
-            UserSession.session_token == access_token,
+            UserSession.session_token == _hash_token(access_token),
             UserSession.user_id == current_user.id,
         ).first()
         if s:
@@ -339,7 +341,7 @@ def forgot_password(email: str, request: Request, db: Session = Depends(get_db))
     if user:
         token = str(uuid.uuid4())
         user.password_reset_token = token
-        user.password_reset_expires = datetime.utcnow() + timedelta(hours=1)
+        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
 
         reset_url = f"{settings.app_base_url}/reset-password?token={token}"
@@ -365,7 +367,7 @@ def forgot_password(email: str, request: Request, db: Session = Depends(get_db))
 def reset_password(token: str, new_password: str, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         User.password_reset_token == token,
-        User.password_reset_expires > datetime.utcnow(),
+        User.password_reset_expires > datetime.now(timezone.utc),
     ).first()
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")

@@ -24,6 +24,7 @@ from app.schemas.clinic import (
     ClinicCreate,
     ClinicDetailResponse,
     ClinicUpdate,
+    ClinicUpdateSelf,
     DaySlotsResponse,
     DoctorCreate,
     DoctorResponse,
@@ -143,9 +144,7 @@ def _compute_doctor_next_available(
     booked_map: dict = {}
     for row in rows:
         d = row.appointment_date
-        t_raw = row.appointment_time
-        t = t_raw.strftime("%H:%M") if hasattr(t_raw, "strftime") else str(t_raw)[:5]
-        booked_map.setdefault(d, set()).add(t)
+        booked_map.setdefault(row.appointment_date, set()).add(str(row.appointment_time)[:5])
 
     for days_ahead in range(14):
         check_date = today + timedelta(days=days_ahead)
@@ -207,6 +206,8 @@ def _lookup_clinic(slug_or_id: str, db: Session, approved_only: bool = True) -> 
 @router.post("/register", status_code=201)
 def register_clinic(body: ClinicRegistrationBody, db: Session = Depends(get_db)):
     """Public endpoint — creates clinic + admin user in pending/inactive state."""
+    from sqlalchemy.exc import IntegrityError
+
     if len(body.admin.password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
     if db.query(User).filter(User.email == body.admin.email).first():
@@ -271,7 +272,11 @@ def register_clinic(body: ClinicRegistrationBody, db: Session = Depends(get_db))
     db.flush()
 
     admin_user.clinic_id = clinic.id
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "A clinic or account with these details already exists")
 
     return {
         "registration_reference": ref,
@@ -402,12 +407,17 @@ def get_filters(db: Session = Depends(get_db)):
 @router.post("/", status_code=201)
 def create_clinic(
     data: ClinicCreate,
-    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
+    from sqlalchemy.exc import IntegrityError
     clinic = Clinic(**data.model_dump())
     db.add(clinic)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="A clinic with that email or phone already exists")
     db.refresh(clinic)
     return {"id": str(clinic.id), "slug": clinic.slug, "name": clinic.name}
 
@@ -530,9 +540,20 @@ def update_clinic(
     db: Session = Depends(get_db),
 ):
     clinic = _lookup_clinic(slug_or_id, db, approved_only=False)
-    if current_user.clinic_id != clinic.id and current_user.role != UserRole.SUPER_ADMIN:
+    is_super = current_user.role == UserRole.SUPER_ADMIN
+    is_own_clinic = current_user.clinic_id == clinic.id
+
+    if not is_super and not is_own_clinic:
         raise HTTPException(status_code=403, detail="Not authorized")
-    for field, value in data.model_dump(exclude_none=True).items():
+
+    # Clinic admins can only update self-service fields; restrict sensitive fields to super_admin
+    if is_super:
+        updates = data.model_dump(exclude_none=True)
+    else:
+        safe = ClinicUpdateSelf(**data.model_dump(exclude_none=True))
+        updates = safe.model_dump(exclude_none=True)
+
+    for field, value in updates.items():
         setattr(clinic, field, value)
     db.commit()
     db.refresh(clinic)
@@ -641,11 +662,7 @@ def get_slots(
     if doctor_id:
         booked_q = booked_q.filter(Appointment.doctor_id == doctor_id)
 
-    booked_set = set()
-    for a in booked_q.all():
-        t_raw = a.appointment_time
-        t = t_raw.strftime("%H:%M") if hasattr(t_raw, "strftime") else str(t_raw)[:5]
-        booked_set.add((str(a.doctor_id), t))
+    booked_set = {(str(a.doctor_id), str(a.appointment_time)[:5]) for a in booked_q.all()}
 
     # Collect all possible times; mark available if any doctor is free at that time
     all_times: dict = {}   # time → is_available
@@ -699,9 +716,13 @@ def add_doctor(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.role not in (UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(status_code=403, detail="Clinic admin or super admin required")
     clinic = _lookup_clinic(slug_or_id, db, approved_only=False)
-    if current_user.clinic_id != clinic.id and current_user.role != UserRole.SUPER_ADMIN:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    if current_user.role != UserRole.SUPER_ADMIN and current_user.clinic_id != clinic.id:
+        raise HTTPException(status_code=403, detail="Not authorized for this clinic")
+    if clinic.is_active is False:
+        raise HTTPException(status_code=400, detail="Cannot add doctors to a suspended clinic")
     doctor = Doctor(**data.model_dump(), clinic_id=clinic.id)
     db.add(doctor)
     db.commit()

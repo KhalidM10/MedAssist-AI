@@ -1,11 +1,12 @@
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.deps import get_current_user, get_db
+from app.core.limiter import limiter
 from app.models.user import User, UserRole
 from app.models.order import Order, OrderStatus
 from app.models.product import Product
@@ -83,9 +84,14 @@ def create_order(
                 status_code=400,
                 detail=f"Insufficient stock for {product.name} (available: {product.stock_quantity})",
             )
-        resolved.append((product, item.quantity))
         if clinic_id is None:
             clinic_id = product.clinic_id
+        elif product.clinic_id != clinic_id:
+            raise HTTPException(
+                status_code=400,
+                detail="All products in a single order must belong to the same clinic",
+            )
+        resolved.append((product, item.quantity))
 
     if clinic_id is None:
         raise HTTPException(status_code=400, detail="No valid products")
@@ -119,14 +125,21 @@ def create_order(
     db.add(order)
 
     for product, qty in resolved:
-        product.stock_quantity = max(0, product.stock_quantity - qty)
+        if product.stock_quantity < qty:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock for {product.name} — concurrent order may have consumed it",
+            )
+        product.stock_quantity -= qty
 
     db.commit()
     return OrderResponse.model_validate(_fetch_order(str(order.id), db))
 
 
 @router.post("/{order_id}/initiate-payment", status_code=202)
+@limiter.limit("5/minute")
 async def initiate_order_payment(
+    request: Request,
     order_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -169,6 +182,18 @@ async def initiate_order_payment(
     }
 
 
+_VALID_TRANSITIONS: dict[str, set[str]] = {
+    "pending":          {"confirmed", "processing", "cancelled"},
+    "confirmed":        {"processing", "cancelled"},
+    "processing":       {"ready", "out_for_delivery", "cancelled"},
+    "ready":            {"delivered", "cancelled"},
+    "out_for_delivery": {"delivered", "cancelled"},
+    "delivered":        {"refunded"},
+    "cancelled":        set(),
+    "refunded":         set(),
+}
+
+
 @router.patch("/{order_id}/status", response_model=OrderResponse)
 async def update_order_status(
     order_id: str,
@@ -179,8 +204,18 @@ async def update_order_status(
     if current_user.role not in [UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
     order = _fetch_order(order_id, db)
-    old_status = order.status
-    order.status = str(status)
+    old_status = str(order.status)
+    new_status = str(status)
+
+    allowed = _VALID_TRANSITIONS.get(old_status, set())
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot transition order from '{old_status}' to '{new_status}'. "
+                   f"Allowed: {sorted(allowed) or 'none'}",
+        )
+
+    order.status = new_status
     db.commit()
 
     # Notify patient of order status change

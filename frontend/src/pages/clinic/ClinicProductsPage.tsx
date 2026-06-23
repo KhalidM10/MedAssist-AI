@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Store, Search, Package, Rocket, Filter } from 'lucide-react'
 import { api } from '../../lib/api'
-import { useAuthStore } from '../../store/auth'
 import { formatKES, cn } from '../../lib/utils'
 import type { Product } from '../../types'
 
@@ -103,19 +102,14 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export function ClinicProductsPage() {
-  const { user } = useAuthStore()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
 
-  const { data: allProducts = [], isLoading } = useQuery<Product[]>({
+  const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['clinic-products'],
-    queryFn: () => api.get('/orders/products').then(r => r.data),
+    queryFn: () => api.get('/dashboard/products').then(r => r.data),
     staleTime: 120_000,
   })
-
-  const products = allProducts.filter(p =>
-    !user?.clinic_id || p.clinic_id === user.clinic_id,
-  )
 
   const filtered = products.filter(p => {
     const matchCat = category === 'all' || p.category === category

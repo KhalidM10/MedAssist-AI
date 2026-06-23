@@ -77,7 +77,7 @@ def delete_my_account(
     anonymised_email = f"deleted_{current_user.id}@medassist.deleted"
     current_user.full_name = "Deleted User"
     current_user.email = anonymised_email
-    current_user.phone = None
+    current_user.phone = f"del_{current_user.id.hex[:16]}"
     current_user.password_hash = ""
     current_user.date_of_birth = None
     current_user.gender = None

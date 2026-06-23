@@ -99,15 +99,9 @@ def create_override(
 @router.get("/overrides", response_model=List[OverrideOut])
 def list_overrides(
     user_id: uuid.UUID = Query(..., description="Target user ID"),
-    current_user: User = Depends(require_permission("users:read:own_clinic")),
+    current_user: User = Depends(require_permission("users:manage:all")),
     db: Session = Depends(get_db),
 ):
-    # Clinic admins can only query users in their own clinic
-    if current_user.role not in ("super_admin",):
-        target = db.query(User).filter(User.id == user_id).first()
-        if not target or target.clinic_id != current_user.clinic_id:
-            raise HTTPException(status_code=403, detail="Cannot view overrides for users outside your clinic")
-
     return (
         db.query(UserPermissionOverride)
         .filter(UserPermissionOverride.user_id == user_id)

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Cookie, Depends, HTTPException, Request, status
@@ -48,18 +48,23 @@ def get_current_user(
         user_id: str = payload.get("sub")
         if not user_id or payload.get("type") != "access":
             raise exc
-    except JWTError:
+    except Exception:
         raise exc
 
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
         raise exc
 
-    if user.locked_until and user.locked_until > datetime.utcnow().replace(tzinfo=user.locked_until.tzinfo):
+    if user.locked_until and datetime.now(timezone.utc) < user.locked_until:
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
             detail="Account temporarily locked due to failed login attempts",
         )
+
+    # Issue #8: set RLS session vars so PostgreSQL RLS policies can enforce row-level isolation
+    from app.database import set_rls_context
+    from app.models.user import UserRole
+    set_rls_context(db, user.clinic_id, user.role == UserRole.SUPER_ADMIN, user.id)
 
     return user
 
@@ -111,7 +116,6 @@ def require_permission(permission_name: str):
                 failure_reason="insufficient_permissions",
                 risk_score=30,
             )
-            db.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Permission '{permission_name}' required",

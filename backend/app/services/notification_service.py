@@ -35,8 +35,8 @@ async def notify(
     title: str,
     body: str,
     data: Optional[dict] = None,
-    channels: List[str] = None,
-    clinic_id: Optional[str] = None,
+    channels: Optional[List[str]] = None,
+    clinic_id: Optional[uuid.UUID] = None,
 ) -> Notification:
     """
     Persist + dispatch a notification.
@@ -61,6 +61,8 @@ async def notify(
     # In-app: WebSocket push (non-blocking)
     if "in_app" in channels:
         from app.core.ws_manager import ws_manager
+        # Strip email fields so they are never sent over the WebSocket
+        ws_data = {k: v for k, v in (data or {}).items() if k not in ("email_html", "email_subject")}
         payload = {
             "type": "notification",
             "data": {
@@ -68,12 +70,13 @@ async def notify(
                 "notif_type": type,
                 "title": title,
                 "body": body,
-                "data": data or {},
+                "data": ws_data,
                 "ts": notif.sent_at.isoformat(),
                 "read": False,
             },
         }
-        asyncio.ensure_future(ws_manager.publish_to_user(str(user.id), payload))
+        task = asyncio.ensure_future(ws_manager.publish_to_user(str(user.id), payload))
+        task.add_done_callback(lambda _: None)  # keep strong reference until done
 
     # SMS: via Celery
     if "sms" in channels and user.phone:
@@ -108,4 +111,5 @@ async def notify_clinic(
         "type": type,
         "data": {"title": title, "body": body, **(data or {})},
     }
-    asyncio.ensure_future(ws_manager.publish_to_clinic(clinic_id, payload))
+    task = asyncio.ensure_future(ws_manager.publish_to_clinic(clinic_id, payload))
+    task.add_done_callback(lambda _: None)

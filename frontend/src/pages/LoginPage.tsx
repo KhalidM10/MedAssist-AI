@@ -61,7 +61,11 @@ export function LoginPage() {
       await login(values.email, values.password, values.totp_code, values.backup_code)
       const user = useAuthStore.getState().user
       const next = searchParams.get('next')
-      if (next && next.startsWith('/') && !next.startsWith('//')) {
+      const isSafeNext = (url: string) => {
+        if (!url.startsWith('/') || url.startsWith('//')) return false
+        try { return new URL(url, window.location.origin).origin === window.location.origin } catch { return false }
+      }
+      if (next && isSafeNext(next)) {
         navigate(next, { replace: true })
       } else if (user?.role === 'super_admin') {
         navigate('/admin', { replace: true })

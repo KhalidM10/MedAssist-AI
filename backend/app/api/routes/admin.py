@@ -529,9 +529,13 @@ def list_users(
     q: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     limit: int = Query(100, le=500),
+    offset: int = Query(0, ge=0),
     current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
+    if role and role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+
     query = db.query(User)
     if q:
         like = f"%{q}%"
@@ -541,7 +545,7 @@ def list_users(
     if role:
         query = query.filter(User.role == role)
 
-    users = query.order_by(User.created_at.desc()).limit(limit).all()
+    users = query.order_by(User.created_at.desc()).offset(offset).limit(limit).all()
 
     if not users:
         return []

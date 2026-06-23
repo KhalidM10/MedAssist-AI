@@ -18,9 +18,14 @@ class AppointmentCreate(BaseModel):
     @field_validator("reason")
     @classmethod
     def reason_not_empty(cls, v: str) -> str:
-        if not v or not v.strip():
+        v = v.strip()
+        if not v:
             raise ValueError("Reason for visit cannot be empty")
-        return v.strip()
+        if len(v) < 10:
+            raise ValueError("Please describe your reason for the visit (at least 10 characters)")
+        if len(v) > 1000:
+            raise ValueError("Reason must be 1000 characters or less")
+        return v
 
 
 class AppointmentUpdate(BaseModel):

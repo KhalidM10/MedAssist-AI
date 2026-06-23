@@ -11,7 +11,7 @@ interface Stats {
   appointments_completed: number
 }
 
-const PLAN_MRR = { basic: 0, pro: 4_999, enterprise: 14_999 }
+const PLAN_MRR = { basic: 3_500, pro: 8_500, enterprise: 18_000 }
 const PLAN_STYLE: Record<string, { bg: string; color: string }> = {
   enterprise: { bg: '#F5F3FF', color: '#6D28D9' },
   pro:        { bg: '#EFF6FF', color: '#1E40AF' },

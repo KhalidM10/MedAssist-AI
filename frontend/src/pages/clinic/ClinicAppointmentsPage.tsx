@@ -86,6 +86,10 @@ export function ClinicAppointmentsPage() {
       qc.invalidateQueries({ queryKey: ['clinic-appointments'] })
       qc.invalidateQueries({ queryKey: ['clinic-stats'] })
     },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      alert(msg ?? 'Failed to update appointment status. Please try again.')
+    },
     onSettled: () => setUpdatingId(null),
   })
 

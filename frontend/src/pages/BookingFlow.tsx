@@ -210,7 +210,7 @@ export function BookingFlow() {
         doctor_id: selectedDoctor?.id ?? null,
         appointment_date: selectedDate,
         appointment_time: selectedSlot!.time + ':00',
-        reason: reason || null,
+        reason: reason.trim(),
         amount_kes: selectedDoctor?.consultation_fee_kes ?? 0,
       })
       return data as Appointment
@@ -225,7 +225,7 @@ export function BookingFlow() {
     if (step === 'doctor') return true          // doctor selection is optional
     if (step === 'date') return !!selectedDate
     if (step === 'time') return !!selectedSlot
-    if (step === 'reason') return true
+    if (step === 'reason') return reason.trim().length >= 10
     if (step === 'review') return true
     return false
   }
@@ -248,7 +248,7 @@ export function BookingFlow() {
     const start = new Date(selectedDate)
     start.setHours(h, m, 0)
     const end = new Date(start)
-    end.setMinutes(end.getMinutes() + 30)
+    end.setMinutes(end.getMinutes() + (selectedDoctor?.slot_duration_minutes ?? 30))
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
     const params = new URLSearchParams({
       action: 'TEMPLATE',
@@ -514,8 +514,10 @@ export function BookingFlow() {
               placeholder="e.g. Persistent headache for 3 days, mild fever…"
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 outline-none resize-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <p className="text-xs text-gray-400">
-              Optional — you can also discuss in person.
+            <p className={`text-xs ${reason.trim().length > 0 && reason.trim().length < 10 ? 'text-red-500' : 'text-gray-400'}`}>
+              {reason.trim().length > 0 && reason.trim().length < 10
+                ? `${10 - reason.trim().length} more characters required`
+                : 'At least 10 characters. This helps the doctor prepare.'}
             </p>
           </div>
         )}

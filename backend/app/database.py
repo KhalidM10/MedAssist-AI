@@ -37,6 +37,7 @@ def set_rls_context(
     db: Session,
     clinic_id: Optional[uuid.UUID],
     is_super_admin: bool,
+    user_id: Optional[uuid.UUID] = None,
 ) -> None:
     """
     Set PostgreSQL session-level variables for Row Level Security.
@@ -49,6 +50,10 @@ def set_rls_context(
     db.execute(
         text("SELECT set_config('app.current_clinic_id', :val, false)"),
         {"val": str(clinic_id) if clinic_id else ""},
+    )
+    db.execute(
+        text("SELECT set_config('app.current_user_id', :val, false)"),
+        {"val": str(user_id) if user_id else ""},
     )
 
 

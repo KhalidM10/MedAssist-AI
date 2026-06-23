@@ -77,7 +77,9 @@ def clinic_stats(
 
     if current_user.role == UserRole.SUPER_ADMIN:
         total_clinics = db.query(func.count(Clinic.id)).filter(Clinic.is_active == True).scalar() or 0
-        total_patients = db.query(func.count(User.id)).filter(User.role == UserRole.PATIENT).scalar() or 0
+        total_patients = db.query(func.count(User.id)).filter(
+            User.role == UserRole.PATIENT, User.is_active == True
+        ).scalar() or 0
         total_appointments = db.query(func.count(Appointment.id)).scalar() or 0
         total_revenue = db.query(func.coalesce(func.sum(Appointment.amount_kes), 0)).filter(
             Appointment.status == AppointmentStatus.COMPLETED
@@ -137,7 +139,8 @@ def clinic_stats(
     ).scalar() or 0
 
     pending_orders = db.query(func.count(Order.id)).filter(
-        Order.status == OrderStatus.PENDING
+        Order.clinic_id == clinic.id,
+        Order.status == OrderStatus.PENDING,
     ).scalar() or 0
 
     completion_rate = round(completed / max(total, 1) * 100, 1)
@@ -282,12 +285,13 @@ def dashboard_appointments(
     return [
         {
             "id": str(appt.id),
+            "patient_id": str(appt.patient_id),
             "patient_name": patient_name,
             "appointment_date": str(appt.appointment_date),
             "appointment_time": str(appt.appointment_time)[:5],
             "status": appt.status,
             "reason": appt.reason,
-            "amount_kes": appt.amount_kes,
+            "amount_kes": float(appt.amount_kes or 0),
             "booking_reference": f"MA-{str(appt.id).upper().replace('-', '')[:8]}",
             "doctor_name": appt.doctor.full_name if appt.doctor else None,
         }
@@ -299,7 +303,6 @@ def dashboard_appointments(
 async def update_appointment_status(
     appointment_id: str,
     new_status: str = Query(..., alias="status"),
-    background_tasks: BackgroundTasks = None,
     current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
@@ -663,3 +666,36 @@ def submit_change_request(
     })
     db.commit()
     return {"ok": True, "message": "Change request submitted. A super admin will review it shortly."}
+
+
+# ── Products (clinic view — includes Rx products) ─────────────────────────────
+
+@router.get("/products")
+def clinic_products(
+    search: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    from app.models.product import Product
+    clinic = _get_clinic(current_user, db)
+    q = db.query(Product).filter(Product.clinic_id == clinic.id)
+    if category and category != "all":
+        q = q.filter(Product.category == category)
+    if search:
+        q = q.filter(Product.name.ilike(f"%{search}%"))
+    products = q.order_by(Product.requires_prescription, Product.category, Product.name).all()
+    return [
+        {
+            "id": str(p.id),
+            "clinic_id": str(p.clinic_id),
+            "name": p.name,
+            "description": p.description,
+            "category": p.category,
+            "price_kes": float(p.price_kes),
+            "stock_quantity": p.stock_quantity,
+            "requires_prescription": p.requires_prescription,
+            "is_active": p.is_active,
+        }
+        for p in products
+    ]

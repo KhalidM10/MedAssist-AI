@@ -130,7 +130,7 @@ export function AdminTriagePage() {
                     outerRadius={80}
                     dataKey="value"
                     nameKey="name"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => percent > 0.03 ? `${name} ${((percent ?? 0) * 100).toFixed(0)}%` : ''}
                     labelLine={false}
                   >
                     {d.severity_breakdown.map((entry, i) => (

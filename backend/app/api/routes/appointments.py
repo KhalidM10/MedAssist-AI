@@ -1,10 +1,10 @@
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import get_settings
@@ -64,13 +64,11 @@ async def book_appointment(
         if not doctor:
             raise HTTPException(status_code=404, detail="Doctor not found at this clinic")
 
-    time_str = data.appointment_time.strftime("%H:%M:%S")
-
     # Fix #9: conflict check scoped to doctor when specified, else any slot at the clinic
     conflict_q = db.query(Appointment).filter(
         Appointment.clinic_id == data.clinic_id,
         Appointment.appointment_date == data.appointment_date,
-        Appointment.appointment_time == time_str,
+        Appointment.appointment_time == data.appointment_time,
         Appointment.status.notin_([AppointmentStatus.CANCELLED]),
     )
     if data.doctor_id:
@@ -90,7 +88,7 @@ async def book_appointment(
         clinic_id=data.clinic_id,
         doctor_id=data.doctor_id,
         appointment_date=data.appointment_date,
-        appointment_time=time_str,
+        appointment_time=data.appointment_time,
         reason=data.reason,
         amount_kes=data.amount_kes or 0.0,
     )
@@ -101,9 +99,15 @@ async def book_appointment(
     background_tasks.add_task(
         _post_booking_notifications,
         appointment_id=str(appointment.id),
-        patient=current_user,
-        clinic=clinic,
-        doctor=doctor,
+        patient_id=str(current_user.id),
+        patient_name=current_user.full_name,
+        patient_email=current_user.email,
+        patient_phone=current_user.phone,
+        clinic_id=str(clinic.id),
+        clinic_name=clinic.name,
+        clinic_address=clinic.address or "",
+        clinic_phone=clinic.phone,
+        doctor_name=doctor.full_name if doctor else "the doctor",
         appt_date=str(data.appointment_date),
         appt_time=str(data.appointment_time)[:5],
     )
@@ -113,15 +117,21 @@ async def book_appointment(
 
 async def _post_booking_notifications(
     appointment_id: str,
-    patient: User,
-    clinic,
-    doctor: Optional[Doctor],
+    patient_id: str,
+    patient_name: str,
+    patient_email: str,
+    patient_phone: Optional[str],
+    clinic_id: str,
+    clinic_name: str,
+    clinic_address: str,
+    clinic_phone: str,
+    doctor_name: str,
     appt_date: str,
     appt_time: str,
 ) -> None:
     from app.database import SessionLocal
+    from app.models.user import User as UserModel
     from app.services.notification_service import notify, notify_clinic
-    from app.services.sms import sms_appointment_confirmed
     from app.services.email import email_appointment_confirmed
 
     db = SessionLocal()
@@ -130,18 +140,18 @@ async def _post_booking_notifications(
         if not appt:
             return
 
+        patient = db.query(UserModel).filter(UserModel.id == patient_id).first()
+        if not patient:
+            return
+
         ref = _reference(appt.id)
-        doctor_name = doctor.full_name if doctor else "the doctor"
-        clinic_name = clinic.name if clinic else "the clinic"
-        clinic_addr = clinic.address if clinic else ""
-        clinic_phone = clinic.phone if clinic else ""
 
         try:
             _, email_html = email_appointment_confirmed(
-                patient_name=patient.full_name,
+                patient_name=patient_name,
                 doctor_name=doctor_name,
                 clinic_name=clinic_name,
-                clinic_address=clinic_addr,
+                clinic_address=clinic_address,
                 clinic_phone=clinic_phone,
                 date=appt_date,
                 time=appt_time,
@@ -169,13 +179,13 @@ async def _post_booking_notifications(
         try:
             await notify_clinic(
                 db,
-                clinic_id=str(clinic.id),
+                clinic_id=clinic_id,
                 type="new_appointment",
                 title="New Appointment",
-                body=f"{patient.full_name} booked for {appt_date} at {appt_time}",
+                body=f"{patient_name} booked for {appt_date} at {appt_time}",
                 data={
                     "appointment_id": appointment_id,
-                    "patient_name": patient.full_name,
+                    "patient_name": patient_name,
                     "date": appt_date,
                     "time": appt_time,
                     "reference": ref,
@@ -249,10 +259,11 @@ async def cancel_appointment(
         raise HTTPException(status_code=400, detail="Cannot cancel a completed appointment")
 
     from datetime import time as time_type
+    EAT = timezone(timedelta(hours=3))
     t = appt.appointment_time
     appt_time_obj = t if isinstance(t, time_type) else time_type.fromisoformat(str(t)[:8])
-    appt_dt = datetime.combine(appt.appointment_date, appt_time_obj)
-    if appt_dt - datetime.now() < timedelta(hours=2):
+    appt_dt = datetime.combine(appt.appointment_date, appt_time_obj).replace(tzinfo=EAT)
+    if appt_dt - datetime.now(EAT) < timedelta(hours=2):
         raise HTTPException(
             status_code=400,
             detail="Appointments can only be cancelled at least 2 hours before the scheduled time.",
@@ -263,14 +274,14 @@ async def cancel_appointment(
     db.refresh(appt)
 
     ref = _reference(appt.id)
-    clinic_id = str(appt.clinic_id) if appt.clinic_id else None
+    cancel_clinic_id = str(appt.clinic_id) if appt.clinic_id else None
 
     background_tasks.add_task(
         _post_cancel_notifications,
         appointment_id=appointment_id,
-        patient=current_user,
+        patient_id=str(current_user.id),
         reference=ref,
-        clinic_id=clinic_id,
+        clinic_id=cancel_clinic_id,
         appt_date=str(appt.appointment_date),
         appt_time=str(appt.appointment_time)[:5],
     )
@@ -279,26 +290,29 @@ async def cancel_appointment(
 
 
 async def _post_cancel_notifications(
-    appointment_id: str, patient: User, reference: str,
+    appointment_id: str, patient_id: str, reference: str,
     clinic_id: Optional[str], appt_date: str, appt_time: str,
 ) -> None:
     from app.database import SessionLocal
+    from app.models.user import User as UserModel
     from app.services.notification_service import notify, notify_clinic
 
     db = SessionLocal()
     try:
-        try:
-            await notify(
-                db, patient,
-                type="appointment_cancelled",
-                title="Appointment Cancelled",
-                body=f"Your appointment (Ref: {reference}) has been cancelled.",
-                data={"appointment_id": appointment_id, "reference": reference},
-                channels=["in_app", "sms"],
-            )
-            db.commit()
-        except Exception:
-            logger.exception("Failed to send cancellation notification for appointment %s", appointment_id)
+        patient = db.query(UserModel).filter(UserModel.id == patient_id).first()
+        if patient:
+            try:
+                await notify(
+                    db, patient,
+                    type="appointment_cancelled",
+                    title="Appointment Cancelled",
+                    body=f"Your appointment (Ref: {reference}) has been cancelled.",
+                    data={"appointment_id": appointment_id, "reference": reference},
+                    channels=["in_app", "sms"],
+                )
+                db.commit()
+            except Exception:
+                logger.exception("Failed to send cancellation notification for appointment %s", appointment_id)
 
         if clinic_id:
             try:
@@ -323,6 +337,27 @@ class ReviewCreate(BaseModel):
     title: Optional[str] = None
     body: Optional[str] = None
 
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v: int) -> int:
+        if not 1 <= v <= 5:
+            raise ValueError("Rating must be between 1 and 5")
+        return v
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v.strip()) > 120:
+            raise ValueError("Title must be 120 characters or less")
+        return v.strip() if v else v
+
+    @field_validator("body")
+    @classmethod
+    def validate_body(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v.strip()) > 2000:
+            raise ValueError("Review body must be 2000 characters or less")
+        return v.strip() if v else v
+
 
 @router.post("/{appointment_id}/review", status_code=201)
 def submit_review(
@@ -331,14 +366,15 @@ def submit_review(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not 1 <= data.rating <= 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
-
     appt = _fetch(db, appointment_id)
     if str(appt.patient_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not your appointment")
     if appt.status != AppointmentStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="You can only review a completed appointment")
+
+    cutoff = date.today() - timedelta(days=90)
+    if appt.appointment_date < cutoff:
+        raise HTTPException(status_code=400, detail="Reviews can only be submitted within 90 days of the appointment")
 
     existing = db.query(Review).filter(Review.appointment_id == appt.id).first()
     if existing:
@@ -358,6 +394,16 @@ def submit_review(
     db.add(review)
     db.commit()
     db.refresh(review)
+
+    # Issue #27: notify clinic staff of new review
+    if appt.clinic_id:
+        asyncio.ensure_future(_notify_new_review(
+            clinic_id=str(appt.clinic_id),
+            patient_name=current_user.full_name,
+            rating=data.rating,
+            review_id=str(review.id),
+        ))
+
     return {
         "id": str(review.id),
         "rating": review.rating,
@@ -365,3 +411,27 @@ def submit_review(
         "body": review.body,
         "created_at": review.created_at.isoformat(),
     }
+
+
+async def _notify_new_review(
+    clinic_id: str, patient_name: str, rating: int, review_id: str,
+) -> None:
+    from app.database import SessionLocal
+    from app.services.notification_service import notify_clinic
+
+    db = SessionLocal()
+    try:
+        stars = "★" * rating + "☆" * (5 - rating)
+        await notify_clinic(
+            db,
+            clinic_id=clinic_id,
+            type="new_review",
+            title="New Patient Review",
+            body=f"{patient_name} left a {rating}-star review {stars}",
+            data={"review_id": review_id, "patient_name": patient_name, "rating": rating},
+        )
+        db.commit()
+    except Exception:
+        logger.exception("Failed to send new review notification for clinic %s", clinic_id)
+    finally:
+        db.close()

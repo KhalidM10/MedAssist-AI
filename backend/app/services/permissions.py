@@ -5,7 +5,7 @@ Cache is per-process (not shared across workers) — acceptable for this load.
 Cache is invalidated explicitly whenever overrides change.
 """
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.models.rbac import Permission, RolePermission, UserPermissionOverride
 from app.models.user import User
 
-_CACHE_TTL = 300  # seconds
+_CACHE_TTL = 60  # seconds — short TTL so role changes propagate quickly
 _perm_cache: dict[str, tuple[frozenset[str], float]] = {}
 
 
@@ -57,7 +57,7 @@ def get_user_permissions(db: Session, user: User) -> frozenset[str]:
     perm_set: set[str] = {row[0] for row in rows}
 
     # ── 2. User overrides (unexpired only) ────────────────────────────────────
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     overrides = (
         db.query(UserPermissionOverride)
         .join(Permission, Permission.id == UserPermissionOverride.permission_id)

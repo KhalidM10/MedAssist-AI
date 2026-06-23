@@ -28,7 +28,7 @@ const CATEGORIES = [
   { key: 'first_aid',   label: 'First Aid' },
 ]
 
-const DELIVERY_FEE = 200
+const DELIVERY_FEE_FALLBACK = 200
 
 // ── Checkout schema ────────────────────────────────────────────────────────
 const checkoutSchema = z.object({
@@ -190,16 +190,36 @@ export function MedicineOrderPage() {
   const [category, setCategory] = useState('')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [cart, setCart] = useState<CartItem[]>([])
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('medassist_cart')
+      return saved ? (JSON.parse(saved) as CartItem[]) : []
+    } catch {
+      return []
+    }
+  })
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [confirmedOrder, setConfirmedOrder] = useState<MedOrder | null>(null)
   const [pickupClinicName, setPickupClinicName] = useState<string | null>(null)
   const [confirmedReadyTime, setConfirmedReadyTime] = useState<string>('')
 
   useEffect(() => {
+    try {
+      localStorage.setItem('medassist_cart', JSON.stringify(cart))
+    } catch { /* quota exceeded — ignore */ }
+  }, [cart])
+
+  useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350)
     return () => clearTimeout(t)
   }, [search])
+
+  const { data: config } = useQuery<{ delivery_fee_kes: number }>({
+    queryKey: ['public-config'],
+    queryFn: () => api.get('/public/config').then(r => r.data),
+    staleTime: Infinity,
+  })
+  const DELIVERY_FEE = config?.delivery_fee_kes ?? DELIVERY_FEE_FALLBACK
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['products', category, debouncedSearch],
@@ -649,7 +669,7 @@ export function MedicineOrderPage() {
                 <MapPin className="h-4 w-4" style={{ color: 'var(--color-brand)' }} />
                 <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-text-tertiary)' }}>Pickup at</p>
               </div>
-              <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--color-text-primary)' }}>{pickupClinicName}</p>
+              <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--color-text-primary)' }}>{pickupClinicName ?? 'Clinic Pharmacy'}</p>
               <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>Show order reference at counter</p>
             </div>
           ) : (
@@ -674,13 +694,13 @@ export function MedicineOrderPage() {
       )}
 
       {/* Order details */}
-      {confirmedOrder && confirmedOrder.items_detail.length > 0 && (
+      {confirmedOrder && (confirmedOrder.items_detail ?? []).length > 0 && (
         <div className="card overflow-hidden">
           <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
             <p className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>Items Ordered</p>
           </div>
           <div className="px-5 py-4 space-y-3">
-            {confirmedOrder.items_detail.map((item, i) => (
+            {(confirmedOrder.items_detail ?? []).map((item, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div>
                   <p className="text-[12px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{item.product_name}</p>

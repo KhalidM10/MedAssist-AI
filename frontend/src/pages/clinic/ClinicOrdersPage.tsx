@@ -20,16 +20,21 @@ interface ClinicOrder {
 const STATUS_CONFIG: Record<string, {
   label: string; bg: string; text: string; icon: React.ElementType
 }> = {
-  pending:    { label: 'Pending',    bg: 'var(--color-warning-light)', text: 'var(--color-warning)', icon: Clock },
-  processing: { label: 'Processing', bg: 'var(--color-brand-light)',   text: 'var(--color-brand)',   icon: Package },
-  ready:      { label: 'Ready',      bg: 'var(--color-success-light)', text: 'var(--color-success)', icon: CheckCircle2 },
-  delivered:  { label: 'Delivered',  bg: 'var(--color-surface-2)',     text: 'var(--color-text-secondary)', icon: Truck },
+  pending:          { label: 'Pending',          bg: 'var(--color-warning-light)', text: 'var(--color-warning)',        icon: Clock },
+  confirmed:        { label: 'Confirmed',        bg: 'var(--color-brand-light)',   text: 'var(--color-brand)',          icon: CheckCircle2 },
+  processing:       { label: 'Processing',       bg: 'var(--color-brand-light)',   text: 'var(--color-brand)',          icon: Package },
+  ready:            { label: 'Ready',            bg: 'var(--color-success-light)', text: 'var(--color-success)',        icon: CheckCircle2 },
+  out_for_delivery: { label: 'Out for Delivery', bg: 'var(--color-brand-light)',   text: 'var(--color-brand)',          icon: Truck },
+  delivered:        { label: 'Delivered',        bg: 'var(--color-surface-2)',     text: 'var(--color-text-secondary)', icon: Truck },
+  cancelled:        { label: 'Cancelled',        bg: 'var(--color-danger-light)',  text: 'var(--color-danger)',         icon: Package },
 }
 
 const NEXT_STATUS: Record<string, string> = {
-  pending: 'processing',
-  processing: 'ready',
-  ready: 'delivered',
+  pending:          'processing',
+  confirmed:        'processing',
+  processing:       'ready',
+  ready:            'delivered',
+  out_for_delivery: 'delivered',
 }
 
 function OrderStatusBadge({ status }: { status: string }) {

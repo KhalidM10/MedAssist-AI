@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils'
 
 interface DashboardAppt {
   id: string
+  patient_id: string
   patient_name: string
   appointment_date: string
   appointment_time: string
@@ -18,6 +19,7 @@ interface DashboardAppt {
 }
 
 interface PatientSummary {
+  id: string
   name: string
   totalVisits: number
   lastVisit: string
@@ -82,7 +84,7 @@ function PatientDetail({ patient, appointments }: {
   appointments: DashboardAppt[]
 }) {
   const patientAppts = appointments
-    .filter(a => a.patient_name === patient.name)
+    .filter(a => (a.patient_id ?? a.patient_name) === patient.id)
     .sort((a, b) => b.appointment_date.localeCompare(a.appointment_date))
 
   return (
@@ -175,12 +177,13 @@ export function ClinicPatientsPage() {
     const map = new Map<string, PatientSummary>()
     const today = new Date().toISOString().slice(0, 10)
     for (const appt of appointments) {
-      const name = appt.patient_name
-      const existing = map.get(name)
+      const pid = appt.patient_id || appt.patient_name  // fall back to name for older data
+      const existing = map.get(pid)
       const isUpcoming = appt.appointment_date >= today && appt.status !== 'cancelled'
       if (!existing) {
-        map.set(name, {
-          name,
+        map.set(pid, {
+          id: pid,
+          name: appt.patient_name,
           totalVisits: 1,
           lastVisit: appt.appointment_date,
           lastStatus: appt.status,
@@ -204,7 +207,7 @@ export function ClinicPatientsPage() {
     !search || p.name.toLowerCase().includes(search.toLowerCase()),
   )
 
-  const selectedPatient = patients.find(p => p.name === selected) ?? null
+  const selectedPatient = patients.find(p => p.id === selected) ?? null
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -270,8 +273,8 @@ export function ClinicPatientsPage() {
                 <PatientRow
                   key={patient.name}
                   patient={patient}
-                  selected={selected === patient.name}
-                  onSelect={() => setSelected(prev => prev === patient.name ? null : patient.name)}
+                  selected={selected === patient.id}
+                  onSelect={() => setSelected(prev => prev === patient.id ? null : patient.id)}
                 />
               ))
             )}
