@@ -645,7 +645,7 @@ export function MedicineOrderPage() {
           >
             <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-brand)' }}>Order Reference</p>
             <p className="text-lg font-bold tracking-wide mt-0.5" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-mono)' }}>
-              {confirmedOrder.order_reference}
+              {confirmedOrder.order_number}
             </p>
           </div>
         )}
@@ -694,26 +694,26 @@ export function MedicineOrderPage() {
       )}
 
       {/* Order details */}
-      {confirmedOrder && (confirmedOrder.items_detail ?? []).length > 0 && (
+      {confirmedOrder && (confirmedOrder.items ?? []).length > 0 && (
         <div className="card overflow-hidden">
           <div className="px-5 py-3.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
             <p className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>Items Ordered</p>
           </div>
           <div className="px-5 py-4 space-y-3">
-            {(confirmedOrder.items_detail ?? []).map((item, i) => (
+            {(confirmedOrder.items ?? []).map((item, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div>
-                  <p className="text-[12px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{item.product_name}</p>
-                  <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>× {item.quantity}</p>
+                  <p className="text-[12px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{item.name}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>× {item.qty}</p>
                 </div>
                 <span className="text-[13px] font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                  KES {item.total_kes.toLocaleString()}
+                  KES {item.total.toLocaleString()}
                 </span>
               </div>
             ))}
             <div className="pt-3 flex justify-between text-sm font-bold" style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
               <span>Total Paid</span>
-              <span>KES {confirmedOrder.total_amount_kes.toLocaleString()}</span>
+              <span>KES {confirmedOrder.total_kes.toLocaleString()}</span>
             </div>
           </div>
         </div>

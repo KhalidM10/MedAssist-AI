@@ -17,6 +17,7 @@ interface AuditLog {
   user_email: string | null
   user_role: string | null
   clinic_name: string | null
+  acting_as: string | null
   action: string
   resource_type: string
   resource_id: string | null
@@ -343,8 +344,7 @@ export function ClinicAuditPage() {
 
   function handleExport() {
     const params = new URLSearchParams(buildParams() as Record<string, string>)
-    const token = localStorage.getItem('access_token')
-    window.open(`/api/v1/audit-logs/export/csv?${params.toString()}&token=${token}`, '_blank')
+    window.open(`/api/v1/audit-logs/export/csv?${params.toString()}`, '_blank')
   }
 
   function resetFilters() {

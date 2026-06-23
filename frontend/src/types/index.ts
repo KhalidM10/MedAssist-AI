@@ -41,6 +41,7 @@ export interface Patient {
   full_name: string
   date_of_birth: string | null
   gender: string | null
+  blood_type: string | null
   county: string | null
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
@@ -174,28 +175,38 @@ export interface Product {
   is_active: boolean
 }
 
-export type OrderStatus = 'pending' | 'processing' | 'ready' | 'delivered'
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'processing'
+  | 'ready'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'cancelled'
+  | 'refunded'
 export type DeliveryMethod = 'pickup' | 'delivery'
 export type PaymentMethod = 'mpesa' | 'cash'
 
-export interface OrderItemDetail {
+export interface OrderItem {
   product_id: string
-  product_name: string
-  quantity: number
-  unit_price_kes: number
-  total_kes: number
+  name: string
+  qty: number
+  unit_price: number
+  total: number
 }
 
 export interface MedOrder {
   id: string
   patient_id: string
-  order_reference: string
-  items_detail: OrderItemDetail[]
-  total_amount_kes: number
+  order_number: string
+  items: OrderItem[]
+  subtotal_kes: number
+  delivery_fee_kes: number
+  total_kes: number
   status: OrderStatus
-  delivery_method: DeliveryMethod
+  delivery_method: string | null
   delivery_address: string | null
-  payment_method: PaymentMethod
+  payment_method: string | null
   mpesa_transaction_id: string | null
   created_at: string
 }

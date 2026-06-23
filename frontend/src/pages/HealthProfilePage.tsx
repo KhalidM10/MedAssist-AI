@@ -20,7 +20,7 @@ const KENYA_COUNTIES = [
   'Trans-Nzoia','Turkana','Uasin Gishu','Vihiga','Wajir','West Pokot',
 ]
 
-const BLOOD_TYPES = ['A+', 'A−', 'B+', 'B−', 'AB+', 'AB−', 'O+', 'O−', 'Unknown']
+const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']
 
 const COMMON_ALLERGIES = [
   'Penicillin', 'Sulfa drugs', 'Aspirin', 'NSAIDs', 'Latex',
@@ -373,7 +373,10 @@ export function HealthProfilePage() {
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>Gender</label>
                 <select className={inputClass + ' cursor-pointer'} value={gender} onChange={e => setGender(e.target.value)}>
                   <option value="">Select…</option>
-                  {['Male', 'Female', 'Other', 'Prefer not to say'].map(g => <option key={g} value={g}>{g}</option>)}
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
                 </select>
               </div>
             </div>

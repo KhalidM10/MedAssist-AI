@@ -149,6 +149,7 @@ def clinic_stats(
         "role": "clinic_admin",
         "clinic_name": clinic.name,
         "clinic_county": clinic.county,
+        "subscription_plan": clinic.subscription_plan,
         "appointments_today": appointments_today,
         "pending": pending,
         "confirmed": confirmed,

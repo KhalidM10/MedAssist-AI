@@ -47,7 +47,7 @@ function ProductCard({ product }: { product: Product }) {
         </div>
         <span
           className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
-          style={catStyle}
+          style={{ backgroundColor: catStyle.bg, color: catStyle.text }}
         >
           {product.category}
         </span>

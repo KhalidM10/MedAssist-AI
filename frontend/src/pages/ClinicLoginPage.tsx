@@ -59,7 +59,7 @@ export function ClinicLoginPage() {
     try {
       await login(values.email, values.password, values.totp_code, values.backup_code)
       const user = useAuthStore.getState().user
-      if (!user || !CLINIC_ROLES.includes(user.role)) {
+      if (!user || (!CLINIC_ROLES.includes(user.role) && user.role !== 'super_admin')) {
         setServerError('This portal is for clinic staff only. Please use the patient login.')
         useAuthStore.getState().logout()
         return

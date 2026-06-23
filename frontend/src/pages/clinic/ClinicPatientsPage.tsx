@@ -28,11 +28,11 @@ interface PatientSummary {
   upcomingCount: number
 }
 
-const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
-  pending:   { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
-  confirmed: { bg: 'var(--color-brand-light)',   text: 'var(--color-brand)' },
-  completed: { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
-  cancelled: { bg: 'var(--color-danger-light)',  text: 'var(--color-danger)' },
+const STATUS_COLOR: Record<string, { backgroundColor: string; color: string }> = {
+  pending:   { backgroundColor: 'var(--color-warning-light)', color: 'var(--color-warning)' },
+  confirmed: { backgroundColor: 'var(--color-brand-light)',   color: 'var(--color-brand)' },
+  completed: { backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' },
+  cancelled: { backgroundColor: 'var(--color-danger-light)',  color: 'var(--color-danger)' },
 }
 
 function PatientRow({ patient, onSelect, selected }: {
@@ -143,7 +143,7 @@ function PatientDetail({ patient, appointments }: {
                   </p>
                   <span
                     className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
-                    style={STATUS_COLOR[appt.status] ?? { bg: '#F3F4F6', text: '#374151' }}
+                    style={STATUS_COLOR[appt.status] ?? { backgroundColor: '#F3F4F6', color: '#374151' }}
                   >
                     {appt.status}
                   </span>
