@@ -397,12 +397,13 @@ def submit_review(
 
     # Issue #27: notify clinic staff of new review
     if appt.clinic_id:
-        asyncio.ensure_future(_notify_new_review(
+        _t = asyncio.ensure_future(_notify_new_review(
             clinic_id=str(appt.clinic_id),
             patient_name=current_user.full_name,
             rating=data.rating,
             review_id=str(review.id),
         ))
+        _t.add_done_callback(lambda _: None)
 
     return {
         "id": str(review.id),

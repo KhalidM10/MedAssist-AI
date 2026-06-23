@@ -220,12 +220,13 @@ async def update_order_status(
 
     # Notify patient of order status change
     import asyncio
-    asyncio.ensure_future(_notify_order_status(
+    _t = asyncio.ensure_future(_notify_order_status(
         order_id=order_id,
         patient_id=str(order.patient_id),
         new_status=str(status),
         order_number=order.order_number,
     ))
+    _t.add_done_callback(lambda _: None)
 
     return OrderResponse.model_validate(_fetch_order(order_id, db))
 

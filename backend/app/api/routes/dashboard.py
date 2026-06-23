@@ -306,7 +306,6 @@ async def update_appointment_status(
     current_user: User = Depends(require_role(UserRole.CLINIC_ADMIN, UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db),
 ):
-    from fastapi import BackgroundTasks as BT
     clinic = _get_clinic(current_user, db)
     appt = db.query(Appointment).filter(
         Appointment.id == appointment_id,
@@ -327,7 +326,7 @@ async def update_appointment_status(
     appt_time = str(appt.appointment_time)[:5]
 
     import asyncio
-    asyncio.ensure_future(_notify_appt_status_change(
+    _t = asyncio.ensure_future(_notify_appt_status_change(
         patient_id=patient_id,
         appointment_id=appointment_id,
         new_status=new_status,
@@ -335,6 +334,7 @@ async def update_appointment_status(
         appt_date=appt_date,
         appt_time=appt_time,
     ))
+    _t.add_done_callback(lambda _: None)
 
     return {"id": str(appt.id), "status": appt.status}
 
